@@ -1426,6 +1426,12 @@ export default function Settings({ currentUser, onUserUpdate }) {
                                 <span className="text-slate-450 font-medium">{t('settings.licenseHolder')}</span>
                                 <span className="font-bold text-slate-200">{licenseDetails.holder}</span>
                               </div>
+                              {licenseDetails.schoolId && (
+                                <div className="flex justify-between border-b border-slate-850/40 pb-2">
+                                  <span className="text-slate-450 font-medium">{language === 'ar' ? 'معرف المدرسة' : 'School ID'}</span>
+                                  <span className="font-bold text-slate-100 font-mono">{licenseDetails.schoolId}</span>
+                                </div>
+                              )}
                               <div className="flex justify-between border-b border-slate-850/40 pb-2">
                                 <span className="text-slate-450 font-medium">{t('settings.licenseType')}</span>
                                 <span className="font-extrabold text-blue-400 uppercase tracking-wider">

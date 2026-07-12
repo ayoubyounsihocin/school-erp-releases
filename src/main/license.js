@@ -208,6 +208,9 @@ export async function checkLicenseStatus() {
         } else {
           await SystemSetting.upsert({ key: 'license_custom_message', value: '' });
         }
+        if (data.schoolId) {
+          await SystemSetting.upsert({ key: 'school_id', value: data.schoolId });
+        }
       }
     } catch (e) {
       console.log("Online license key check failed (offline or server error). Falling back to offline signature validation.", e.message);
@@ -218,7 +221,11 @@ export async function checkLicenseStatus() {
       await SystemSetting.upsert({ key: 'license_last_run_date', value: nowStr });
     }
 
-    return { valid: true, reason: 'ACTIVE', payload };
+    const schoolIdSetting = await SystemSetting.findOne({ where: { key: 'school_id' } });
+    const schoolId = schoolIdSetting ? schoolIdSetting.value : (payload.schoolId || '');
+    const enhancedPayload = { ...payload, schoolId };
+
+    return { valid: true, reason: 'ACTIVE', payload: enhancedPayload };
   } catch (e) {
     return { valid: false, reason: 'ERROR', error: `Internal license check error: ${e.message}` };
   }
@@ -274,6 +281,9 @@ export async function activateLicense(keyStr) {
         if (data.customMessage) {
           await SystemSetting.upsert({ key: 'license_custom_message', value: data.customMessage });
         }
+        if (data.schoolId) {
+          await SystemSetting.upsert({ key: 'school_id', value: data.schoolId });
+        }
       }
     } catch (e) {
       console.log("Online activation check failed (offline). Falling back to offline validation.", e.message);
@@ -303,7 +313,12 @@ export async function activateLicense(keyStr) {
     await SystemSetting.upsert({ key: 'license_key', value: keyStr.trim() });
     await SystemSetting.upsert({ key: 'license_last_run_date', value: nowStr });
 
-    return { success: true, payload };
+    const schoolId = payload.schoolId || '';
+    if (schoolId) {
+      await SystemSetting.upsert({ key: 'school_id', value: schoolId });
+    }
+
+    return { success: true, payload: { ...payload, schoolId } };
   } catch (e) {
     return { success: false, error: `Activation error: ${e.message}` };
   }
@@ -370,7 +385,12 @@ export async function confirmActivationAndWipe(keyStr, wipeData) {
     await SystemSetting.upsert({ key: 'license_key', value: keyStr.trim() });
     await SystemSetting.upsert({ key: 'license_last_run_date', value: nowStr });
 
-    return { success: true, payload };
+    const schoolId = payload.schoolId || '';
+    if (schoolId) {
+      await SystemSetting.upsert({ key: 'school_id', value: schoolId });
+    }
+
+    return { success: true, payload: { ...payload, schoolId } };
   } catch (e) {
     return { success: false, error: `Activation error: ${e.message}` };
   }
