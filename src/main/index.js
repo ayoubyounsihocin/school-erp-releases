@@ -2,6 +2,8 @@ import { app, shell, BrowserWindow, ipcMain, dialog, screen } from 'electron'
 import fs from 'fs'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { autoUpdater } from 'electron-updater'
+
 import icon from '../../resources/icon.png?asset'
 import { sequelize, User, Student, Payment, Expense, Course, Teacher, AuditLog, Schedule, ScheduleRequest, SystemSetting, TeacherPayment, StudentCourses, Absence, Grade } from './database/models.js'; // Good job adding this!
 import { checkLicenseStatus, activateLicense, confirmActivationAndWipe, initMachineId } from './license.js';
@@ -2236,6 +2238,85 @@ app.whenReady().then(async () => {
     app.relaunch();
     app.exit(0);
   });
+
+  // Helper to send messages to the renderer process
+  function sendToRenderer(channel, ...args) {
+    const windows = BrowserWindow.getAllWindows();
+    if (windows.length > 0 && windows[0].webContents) {
+      windows[0].webContents.send(channel, ...args);
+    }
+  }
+
+  // --- Auto-Updater Setup ---
+  function initAutoUpdater() {
+    // Disable auto-downloading so the user must click "Download" in the UI
+    autoUpdater.autoDownload = false;
+
+    // Log updater messages for diagnostic purposes
+    autoUpdater.on('checking-for-update', () => {
+      console.log('Checking for update...');
+      sendToRenderer('checking-for-update');
+    });
+    
+    autoUpdater.on('update-available', (info) => {
+      console.log('Update available. Version:', info.version);
+      sendToRenderer('update-available', info);
+    });
+
+    autoUpdater.on('update-not-available', (info) => {
+      console.log('No update available.');
+      sendToRenderer('update-not-available', info);
+    });
+
+    autoUpdater.on('error', (err) => {
+      console.error('Error in auto-updater:', err);
+      sendToRenderer('update-error', err.message || String(err));
+    });
+
+    autoUpdater.on('download-progress', (progressObj) => {
+      sendToRenderer('download-progress', progressObj);
+    });
+
+    autoUpdater.on('update-downloaded', (info) => {
+      console.log('Update downloaded. Version:', info.version);
+      sendToRenderer('update-downloaded', info);
+    });
+
+    // IPC listeners to trigger updater actions from React frontend
+    ipcMain.on('trigger-update-check', () => {
+      if (!is.dev) {
+        autoUpdater.checkForUpdatesAndNotify().catch(err => {
+          console.error('Error checking for updates:', err);
+          sendToRenderer('update-error', err.message);
+        });
+      } else {
+        console.log('Skipped real update check in development mode.');
+      }
+    });
+
+    ipcMain.on('start-update-download', () => {
+      console.log('Starting update download...');
+      autoUpdater.downloadUpdate().catch(err => {
+        console.error('Error downloading update:', err);
+        sendToRenderer('update-error', err.message);
+      });
+    });
+
+    ipcMain.on('install-update-now', () => {
+      console.log('Installing update and restarting...');
+      autoUpdater.quitAndInstall();
+    });
+
+    // Check for updates automatically in production on startup
+    if (!is.dev) {
+      setTimeout(() => {
+        autoUpdater.checkForUpdatesAndNotify().catch(e => console.log('Auto-check error:', e));
+      }, 5000); // Wait 5 seconds after startup to not block database sync
+    }
+  }
+
+  // Initialize auto-updater
+  initAutoUpdater();
 
   createWindow()
 

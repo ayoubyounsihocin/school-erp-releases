@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import Sidebar from './Sidebar'
+import UpdateModal from './UpdateModal'
 import { Bell, Calendar, Clock, AlertTriangle, Sun, Moon, RefreshCw, UserPlus, CreditCard, ShoppingCart, BookOpen, GraduationCap, Users, X, Activity, AlertCircle, Minus, Square } from 'lucide-react'
 import { useLanguage } from '../i18n'
 import { ipcService } from '../services/ipcService'
@@ -13,6 +14,13 @@ export default function Layout({ user, onLogout, theme, toggleTheme }) {
   const [dbStatus, setDbStatus] = useState('checking') // 'checking' | 'connected' | 'disconnected'
   const [currentTime, setCurrentTime] = useState(new Date())
   const [schoolName, setSchoolName] = useState('')
+  
+  // Custom Auto-Updater States
+  const [updateStatus, setUpdateStatus] = useState('idle') // 'idle' | 'available' | 'downloading' | 'downloaded' | 'error'
+  const [updateInfo, setUpdateInfo] = useState(null)
+  const [downloadProgress, setDownloadProgress] = useState(0)
+  const [showUpdateModal, setShowUpdateModal] = useState(false)
+  const [updateError, setUpdateError] = useState('')
 
   const isRTL = language === 'ar'
 
@@ -140,6 +148,115 @@ export default function Layout({ user, onLogout, theme, toggleTheme }) {
     }, 1000)
     return () => clearInterval(timer)
   }, [])
+
+  // Auto-Updater IPC Listeners
+  useEffect(() => {
+    if (window.electron && window.electron.ipcRenderer) {
+      const handleUpdateAvailable = (event, info) => {
+        setUpdateStatus('available')
+        setUpdateInfo(info)
+        // Automatically pop up the modal to inform the user
+        setShowUpdateModal(true)
+      }
+
+      const handleDownloadProgress = (event, progressObj) => {
+        setUpdateStatus('downloading')
+        setDownloadProgress(Math.round(progressObj.percent || 0))
+      }
+
+      const handleUpdateDownloaded = (event, info) => {
+        setUpdateStatus('downloaded')
+        setUpdateInfo(info)
+        setDownloadProgress(100)
+      }
+
+      const handleUpdateError = (event, errorText) => {
+        setUpdateStatus('error')
+        setUpdateError(errorText)
+      }
+
+      window.electron.ipcRenderer.on('update-available', handleUpdateAvailable)
+      window.electron.ipcRenderer.on('download-progress', handleDownloadProgress)
+      window.electron.ipcRenderer.on('update-downloaded', handleUpdateDownloaded)
+      window.electron.ipcRenderer.on('update-error', handleUpdateError)
+
+      // Start automatic check (delayed by 3 seconds)
+      const checkTimeout = setTimeout(() => {
+        window.electron.ipcRenderer.send('trigger-update-check')
+      }, 3000)
+
+      return () => {
+        clearTimeout(checkTimeout)
+        window.electron.ipcRenderer.removeAllListeners('update-available')
+        window.electron.ipcRenderer.removeAllListeners('download-progress')
+        window.electron.ipcRenderer.removeAllListeners('update-downloaded')
+        window.electron.ipcRenderer.removeAllListeners('update-error')
+      }
+    }
+  }, [])
+
+  // Listen to simulated update trigger from Settings
+  useEffect(() => {
+    const handleSimulateCheck = () => {
+      triggerUpdateSimulation()
+    }
+    window.addEventListener('simulate-update-check', handleSimulateCheck)
+    return () => {
+      window.removeEventListener('simulate-update-check', handleSimulateCheck)
+    }
+  }, [])
+
+  const startUpdateDownload = () => {
+    // If it is simulated mode
+    if (updateInfo?.version?.includes('simulated')) {
+      setUpdateStatus('downloading')
+      setDownloadProgress(0)
+      let current = 0
+      const interval = setInterval(() => {
+        current += 4
+        setDownloadProgress(current)
+        if (current >= 100) {
+          clearInterval(interval)
+          setUpdateStatus('downloaded')
+        }
+      }, 150)
+      return
+    }
+
+    // Real update download trigger
+    if (window.electron && window.electron.ipcRenderer) {
+      setUpdateStatus('downloading')
+      window.electron.ipcRenderer.send('start-update-download')
+    }
+  }
+
+  const installUpdateAndRestart = () => {
+    // If it is simulated mode
+    if (updateInfo?.version?.includes('simulated')) {
+      alert(language === 'ar' ? 'جاري إعادة تشغيل التطبيق لتثبيت التحديث (محاكاة)...' : 'Restarting application to apply update (simulated)...')
+      setShowUpdateModal(false)
+      setUpdateStatus('idle')
+      setUpdateInfo(null)
+      // Relaunch the app
+      if (window.api && window.api.relaunchApp) {
+        window.api.relaunchApp()
+      }
+      return
+    }
+
+    // Real restart and install
+    if (window.electron && window.electron.ipcRenderer) {
+      window.electron.ipcRenderer.send('install-update-now')
+    }
+  }
+
+  // Simulator helper (to let user test the update UI)
+  const triggerUpdateSimulation = () => {
+    setUpdateInfo({ version: '1.2.1-simulated' })
+    setUpdateStatus('available')
+    setShowUpdateModal(true)
+  }
+
 
   // Global Keyboard Shortcuts Effect
   useEffect(() => {
@@ -682,6 +799,26 @@ export default function Layout({ user, onLogout, theme, toggleTheme }) {
               {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
             </button>
 
+            {/* Update Available Indicator */}
+            {updateStatus !== 'idle' && (
+              <button
+                onClick={() => setShowUpdateModal(true)}
+                className={`relative p-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  updateStatus === 'downloaded'
+                    ? 'bg-emerald-600/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-600/20'
+                    : 'bg-blue-600/10 border border-blue-500/20 text-blue-400 hover:bg-blue-600/20 animate-pulse'
+                }`}
+                title={language === 'ar' ? 'تحديث متوفر!' : 'Update Available!'}
+              >
+                <RefreshCw className={`h-4 w-4 ${updateStatus === 'downloading' ? 'animate-spin' : ''}`} />
+                <span className="text-[10px] uppercase tracking-wider">
+                  {updateStatus === 'downloaded' 
+                    ? (language === 'ar' ? 'تثبيت التحديث' : 'Install Update') 
+                    : (language === 'ar' ? 'تحديث متوفر' : 'Update Available')}
+                </span>
+              </button>
+            )}
+
             {/* Notification Button & Dropdown */}
             <div className="relative">
               <button 
@@ -882,6 +1019,19 @@ export default function Layout({ user, onLogout, theme, toggleTheme }) {
             <Outlet />
           </div>
         </main>
+
+        {/* Custom Auto-Updater Modal */}
+        <UpdateModal
+          isOpen={showUpdateModal}
+          onClose={() => setShowUpdateModal(false)}
+          status={updateStatus}
+          info={updateInfo}
+          progress={downloadProgress}
+          error={updateError}
+          onStartDownload={startUpdateDownload}
+          onInstall={installUpdateAndRestart}
+          language={language}
+        />
         
       </div>
     </div>

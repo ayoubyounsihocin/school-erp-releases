@@ -1252,7 +1252,7 @@ export default function Settings({ currentUser, onUserUpdate }) {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-2">
                     {/* Export Section */}
                     <div className="p-6 bg-slate-900/35 border border-slate-850/60 rounded-2xl flex flex-col justify-between space-y-4 transition-all text-start">
                       <div className="space-y-2">
@@ -1286,7 +1286,7 @@ export default function Settings({ currentUser, onUserUpdate }) {
                     {/* Import Section */}
                     <div className="p-6 bg-slate-900/35 border border-slate-850/60 rounded-2xl flex flex-col justify-between space-y-4 transition-all text-start">
                       <div className="space-y-2">
-                        <div className="h-9 w-9 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-450 flex items-center justify-center">
+                        <div className="h-9 w-9 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-455 flex items-center justify-center">
                           <Upload className="h-4.5 w-4.5" />
                         </div>
                         <h4 className="text-xs font-bold text-slate-200">
@@ -1338,6 +1338,51 @@ export default function Settings({ currentUser, onUserUpdate }) {
                             <Trash2 className="h-3.5 w-3.5" />
                           )}
                           {t('settings.wipeBtn') || 'Wipe Database & Reset'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Auto-Updater Section */}
+                    <div className="p-6 bg-slate-900/35 border border-blue-500/15 hover:border-blue-500/25 rounded-2xl flex flex-col justify-between space-y-4 transition-all text-start">
+                      <div className="space-y-2">
+                        <div className="h-9 w-9 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center animate-pulse">
+                          <RefreshCw className="h-4.5 w-4.5" />
+                        </div>
+                        <h4 className="text-xs font-bold text-slate-200">
+                          {language === 'ar' ? 'نظام التحديث التلقائي' : 'Auto-Updater System'}
+                        </h4>
+                        <p className="text-[11px] leading-relaxed text-slate-400">
+                          {language === 'ar' 
+                            ? 'التحقق من وجود تحديثات جديدة للتطبيق أو محاكاة عملية التحديث بالكامل لاختبار المظهر وعداد التحميل.' 
+                            : 'Check for new application updates or simulate the update process to test the UI layout and loading bar.'}
+                        </p>
+                      </div>
+                      
+                      <div className="pt-2 flex flex-col gap-2">
+                        <button
+                          onClick={() => {
+                            if (window.electron && window.electron.ipcRenderer) {
+                              window.electron.ipcRenderer.send('trigger-update-check')
+                              alert(language === 'ar' ? 'تم إرسال طلب التحقق من التحديثات للسيرفر.' : 'Update check request sent to server.')
+                            } else {
+                              alert('window.electron is offline')
+                            }
+                          }}
+                          className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-slate-700/60"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                          {language === 'ar' ? 'تحقق الآن' : 'Check Now'}
+                        </button>
+                        
+                        <button
+                          onClick={() => {
+                            const event = new CustomEvent('simulate-update-check')
+                            window.dispatchEvent(event)
+                          }}
+                          className="w-full py-2.5 bg-gradient-to-r from-blue-650 to-indigo-650 hover:from-blue-600 hover:to-indigo-600 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md shadow-blue-500/10 border border-blue-500/10"
+                        >
+                          <Sliders className="h-3.5 w-3.5" />
+                          {language === 'ar' ? 'محاكاة التحديث' : 'Simulate UI'}
                         </button>
                       </div>
                     </div>
