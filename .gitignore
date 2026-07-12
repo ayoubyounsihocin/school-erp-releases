@@ -1,0 +1,14 @@
+node_modules
+dist
+out
+.DS_Store
+.eslintcache
+*.log*
+/scratch
+step_*_tool_calls.txt
+extracted_receipt_step.txt
+audit_report.md
+walkthrough.md
+task.md
+implementation_plan.md
+

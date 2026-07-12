@@ -1,0 +1,397 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --slate-50: 255 255 255;
+  --slate-100: 240 240 240;
+  --slate-200: 220 220 220;
+  --slate-300: 190 190 190;
+  --slate-350: 190 190 190;
+  --slate-355: 190 190 190;
+  --slate-400: 150 150 150;
+  --slate-500: 110 110 110;
+  --slate-550: 110 110 110;
+  --slate-555: 110 110 110;
+  --slate-600: 80 80 80;
+  --slate-700: 51 51 51;
+  --slate-800: 36 36 36;
+  --slate-805: 36 36 36;
+  --slate-850: 36 36 36;
+  --slate-900: 30 30 30;
+  --slate-950: 0 0 0;
+  --slate-955: 0 0 0;
+
+  --body-bg: #000000;
+  --body-color: #ffffff;
+  --scrollbar-track: #000000;
+  --scrollbar-thumb: #242424;
+  --scrollbar-thumb-hover: #333333;
+  --scrollbar-border: #000000;
+}
+
+html.light-mode {
+  --slate-955: 255 255 255;
+  --slate-950: 255 255 255;
+  --slate-900: 241 245 249;
+  --slate-850: 226 232 240;
+  --slate-805: 226 232 240;
+  --slate-800: 226 232 240;
+  --slate-700: 203 213 225;
+  --slate-600: 148 163 184;
+  --slate-555: 100 116 139;
+  --slate-550: 100 116 139;
+  --slate-500: 100 116 139;
+  --slate-400: 71 85 105;
+  --slate-355: 51 65 85;
+  --slate-350: 51 65 85;
+  --slate-300: 51 65 85;
+  --slate-200: 30 41 59;
+  --slate-100: 15 23 42;
+  --slate-50: 15 23 42;
+
+  --body-bg: #f8fafc;
+  --body-color: #0f172a;
+  --scrollbar-track: #dadde0;
+  --scrollbar-thumb: #bbc4cf;
+  --scrollbar-thumb-hover: #94a3b8;
+  --scrollbar-border: #f8fafc;
+}
+
+/* Light mode text contrast overrides for explicit text-white class */
+html.light-mode .text-white:not(button):not(a):not(button *):not(.bg-blue-650 *):not(.bg-blue-600 *):not(.bg-indigo-600 *):not(.bg-emerald-600 *):not(.bg-gradient-to-r *):not(.bg-rose-600 *):not(.bg-purple-650 *):not(.bg-purple-500 *):not(.bg-emerald-500 *) {
+  color: #0f172a !important;
+}
+
+html.light-mode {
+  --tw-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -4px rgba(0, 0, 0, 0.04) !important;
+  --tw-shadow-colored: 0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color) !important;
+}
+
+/* Enable input caret focus and text selection for all form controls */
+input, textarea, select, [contenteditable="true"] {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+
+
+/* Desktop ERP shell reset */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--body-bg);
+  color: var(--body-color);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar for a premium dark look */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 9999px;
+  border: 1px solid var(--scrollbar-border);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* Custom Animations for UI Shell */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulseBorder {
+  0%, 100% {
+    border-color: rgba(59, 130, 246, 0.2);
+  }
+  50% {
+    border-color: rgba(59, 130, 246, 0.5);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out both;
+}
+
+@keyframes scaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-up {
+  animation: scaleUp 0.15s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes slideInDown {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-in-down {
+  animation: slideInDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-pulse-border {
+  animation: pulseBorder 2s infinite ease-in-out;
+}
+
+/* Delay classes for staggered list animations */
+.animation-delay-100 { animation-delay: 100ms; }
+.animation-delay-200 { animation-delay: 200ms; }
+.animation-delay-300 { animation-delay: 300ms; }
+
+@keyframes loadingProgress {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Printing Utilities */
+.print-only {
+  display: none !important;
+}
+
+@media print {
+  /* Hide all elements with the no-print class */
+  .no-print, .no-print * {
+    display: none !important;
+  }
+
+  /* Show all elements with the print-only class */
+  .print-only, .print-only * {
+    display: block !important;
+  }
+
+  /* Override app layout styles for clean physical print output */
+  html, body, #root, #root > div, main, .flex-1 {
+    background: white !important;
+    color: black !important;
+    height: auto !important;
+    width: auto !important;
+    overflow: visible !important;
+    min-height: auto !important;
+  }
+
+  /* Reset tables for solid high-contrast black-and-white printing */
+  table, th, td {
+    border-color: #94a3b8 !important; /* solid gray border for printable tables */
+    color: black !important;
+  }
+
+  th {
+    background-color: #f1f5f9 !important;
+    color: black !important;
+  }
+}
+
+/* Premium Custom Styled Select Dropdown Arrows */
+select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E") !important;
+  background-position: right 0.75rem center !important;
+  background-repeat: no-repeat !important;
+  background-size: 1rem 1rem !important;
+  padding-right: 2.25rem !important;
+}
+
+/* Light mode overrides for high-contrast visibility */
+html.light-mode select {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23475569' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E") !important;
+}
+
+/* RTL Specific CSS Overrides */
+[dir="rtl"] select {
+  background-position: left 0.75rem center !important;
+  padding-left: 2.25rem !important;
+  padding-right: 0.875rem !important;
+}
+
+[dir="rtl"] aside {
+  border-left-width: 1px !important;
+  border-right-width: 0 !important;
+  border-left-color: rgba(51, 65, 85, 0.3) !important;
+}
+
+[dir="rtl"] .sidebar-toggle-btn {
+  left: -12px !important;
+  right: auto !important;
+}
+
+[dir="rtl"] th {
+  text-align: right;
+}
+
+[dir="rtl"] td {
+  text-align: right;
+}
+
+[dir="rtl"] .text-left {
+  text-align: left !important;
+}
+
+[dir="rtl"] .text-right {
+  text-align: right !important;
+}
+
+[dir="rtl"] .text-center {
+  text-align: center !important;
+}
+
+[dir="rtl"] .rtl-flip {
+  transform: scaleX(-1);
+}
+
+/* Make entire date input clickable to open native date picker */
+input[type="date"] {
+  position: relative;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  height: auto;
+  color: transparent;
+  background: transparent;
+  cursor: pointer;
+  z-index: 10;
+}
+
+html.transparent-window,
+html.transparent-window body,
+html.transparent-window #root {
+  background-color: transparent !important;
+}
+
+/* Global button focus ring reset (removes browser's gold/yellow outlines) */
+button:focus, 
+button:active, 
+[role="button"]:focus, 
+[role="button"]:active {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Offset absolute slide-down modals to occupy full width and touch sidebar/container borders (Finance Only) */
+.finance-fullwidth-modal {
+  top: -2rem !important; /* offsets p-8 main layout padding */
+  left: -2rem !important;
+  right: -2rem !important;
+  width: calc(100% + 4rem) !important;
+  border-radius: 0 !important; /* full-width top banner styling */
+}
+
+/* Offset backdrop overlay to cover full padding area (Finance Only) */
+.finance-fullwidth-backdrop {
+  top: -2rem !important;
+  left: -2rem !important;
+  right: -2rem !important;
+  bottom: -2rem !important;
+}
+
+/* Active tab style overrides for premium light mode appearance (solid black background) */
+.subtab-active {
+  background-color: #2563eb !important; /* solid blue in dark mode */
+  color: #ffffff !important;
+}
+html.light-mode .subtab-active {
+  background-color: #000000 !important; /* solid black in light mode */
+  color: #ffffff !important;
+}
+
+html.light-mode .active-settings-tab {
+  background-color: #000000 !important; /* solid black in light mode */
+  color: #ffffff !important;
+  border-color: #000000 !important;
+}
+
+/* Custom user permissions checked text color for accessibility contrast */
+.permission-checked-text {
+  color: #a5b4fc !important; /* light indigo for dark mode */
+}
+html.light-mode .permission-checked-text {
+  color: #312e81 !important; /* dark indigo/navy for light mode */
+}
+
+
+
