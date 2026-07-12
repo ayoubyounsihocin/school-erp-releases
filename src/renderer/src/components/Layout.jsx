@@ -195,35 +195,7 @@ export default function Layout({ user, onLogout, theme, toggleTheme }) {
     }
   }, [])
 
-  // Listen to simulated update trigger from Settings
-  useEffect(() => {
-    const handleSimulateCheck = () => {
-      triggerUpdateSimulation()
-    }
-    window.addEventListener('simulate-update-check', handleSimulateCheck)
-    return () => {
-      window.removeEventListener('simulate-update-check', handleSimulateCheck)
-    }
-  }, [])
-
   const startUpdateDownload = () => {
-    // If it is simulated mode
-    if (updateInfo?.version?.includes('simulated')) {
-      setUpdateStatus('downloading')
-      setDownloadProgress(0)
-      let current = 0
-      const interval = setInterval(() => {
-        current += 4
-        setDownloadProgress(current)
-        if (current >= 100) {
-          clearInterval(interval)
-          setUpdateStatus('downloaded')
-        }
-      }, 150)
-      return
-    }
-
-    // Real update download trigger
     if (window.electron && window.electron.ipcRenderer) {
       setUpdateStatus('downloading')
       window.electron.ipcRenderer.send('start-update-download')
@@ -231,31 +203,11 @@ export default function Layout({ user, onLogout, theme, toggleTheme }) {
   }
 
   const installUpdateAndRestart = () => {
-    // If it is simulated mode
-    if (updateInfo?.version?.includes('simulated')) {
-      alert(language === 'ar' ? 'جاري إعادة تشغيل التطبيق لتثبيت التحديث (محاكاة)...' : 'Restarting application to apply update (simulated)...')
-      setShowUpdateModal(false)
-      setUpdateStatus('idle')
-      setUpdateInfo(null)
-      // Relaunch the app
-      if (window.api && window.api.relaunchApp) {
-        window.api.relaunchApp()
-      }
-      return
-    }
-
-    // Real restart and install
     if (window.electron && window.electron.ipcRenderer) {
       window.electron.ipcRenderer.send('install-update-now')
     }
   }
 
-  // Simulator helper (to let user test the update UI)
-  const triggerUpdateSimulation = () => {
-    setUpdateInfo({ version: '1.2.1-simulated' })
-    setUpdateStatus('available')
-    setShowUpdateModal(true)
-  }
 
 
   // Global Keyboard Shortcuts Effect

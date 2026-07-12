@@ -1353,12 +1353,12 @@ export default function Settings({ currentUser, onUserUpdate }) {
                         </h4>
                         <p className="text-[11px] leading-relaxed text-slate-400">
                           {language === 'ar' 
-                            ? 'التحقق من وجود تحديثات جديدة للتطبيق أو محاكاة عملية التحديث بالكامل لاختبار المظهر وعداد التحميل.' 
-                            : 'Check for new application updates or simulate the update process to test the UI layout and loading bar.'}
+                            ? 'التحقق من وجود تحديثات جديدة للتطبيق وتنزيلها وتثبيتها تلقائياً.' 
+                            : 'Check for new application updates, download, and install them automatically.'}
                         </p>
                       </div>
                       
-                      <div className="pt-2 flex flex-col gap-2">
+                      <div className="pt-2">
                         <button
                           onClick={() => {
                             if (window.electron && window.electron.ipcRenderer) {
@@ -1368,24 +1368,14 @@ export default function Settings({ currentUser, onUserUpdate }) {
                               alert('window.electron is offline')
                             }
                           }}
-                          className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-slate-700/60"
+                          className="w-full py-2.5 bg-blue-600 hover:bg-blue-550 disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-md shadow-blue-500/10 border border-blue-500/10"
                         >
                           <RefreshCw className="h-3.5 w-3.5" />
                           {language === 'ar' ? 'تحقق الآن' : 'Check Now'}
                         </button>
-                        
-                        <button
-                          onClick={() => {
-                            const event = new CustomEvent('simulate-update-check')
-                            window.dispatchEvent(event)
-                          }}
-                          className="w-full py-2.5 bg-gradient-to-r from-blue-650 to-indigo-650 hover:from-blue-600 hover:to-indigo-600 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md shadow-blue-500/10 border border-blue-500/10"
-                        >
-                          <Sliders className="h-3.5 w-3.5" />
-                          {language === 'ar' ? 'محاكاة التحديث' : 'Simulate UI'}
-                        </button>
                       </div>
                     </div>
+
                   </div>
                 </div>
               </div>
