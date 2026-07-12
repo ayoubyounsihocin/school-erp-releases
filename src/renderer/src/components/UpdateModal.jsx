@@ -16,6 +16,11 @@ export default function UpdateModal({
 
   const isRTL = language === 'ar'
 
+  // Clean and truncate raw error messages (avoid giant HTTP dumps)
+  const cleanError = typeof error === 'string'
+    ? (error.length > 120 ? error.split('\n')[0].substring(0, 120) + '...' : error)
+    : String(error || '')
+
   // Text translations
   const text = {
     title: isRTL ? 'تحديث جديد متوفر' : 'New Update Available',
@@ -33,8 +38,8 @@ export default function UpdateModal({
       ? 'اكتمل التحميل بنجاح! يرجى إعادة تشغيل التطبيق لتطبيق التحديث الجديد.' 
       : 'Download completed successfully! Please restart the application to apply the new update.',
     statusError: isRTL 
-      ? `حدث خطأ أثناء التحديث: ${error || 'خطأ غير معروف'}` 
-      : `An error occurred during update: ${error || 'Unknown error'}`,
+      ? `حدث خطأ أثناء التحديث: ${cleanError || 'خطأ غير معروف'}` 
+      : `An error occurred during update: ${cleanError || 'Unknown error'}`,
     btnDownload: isRTL ? 'تحميل وتثبيت' : 'Download & Install',
     btnCancel: isRTL ? 'إلغاء' : 'Cancel',
     btnLater: isRTL ? 'لاحقاً' : 'Later',
