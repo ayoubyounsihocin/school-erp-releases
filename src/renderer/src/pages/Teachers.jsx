@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useLanguage } from '../i18n'
-import { UserCheck, UserPlus, Phone, Mail, Award, AlertCircle, RefreshCw, Search, Plus, Edit, Trash2, X } from 'lucide-react'
+import { UserCheck, UserPlus, Phone, Mail, Award, AlertCircle, RefreshCw, Search, Plus, Edit, Trash2, X, Upload, Download, Check } from 'lucide-react'
 import { ipcService } from '../services/ipcService'
 
 export default function Teachers() {
@@ -49,6 +49,20 @@ export default function Teachers() {
   })
   const [editFormErrors, setEditFormErrors] = useState({})
 
+  // CSV Import States
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+  const [csvHeaders, setCsvHeaders] = useState([])
+  const [csvRows, setCsvRows] = useState([])
+  const [columnMapping, setColumnMapping] = useState({
+    full_name: '',
+    phone: '',
+    email: '',
+    specialty: '',
+    absence_penalty_rate: ''
+  })
+  const [selectedExtraFields, setSelectedExtraFields] = useState([])
+  const [importing, setImporting] = useState(false)
+
   // Fetch teachers from database
   const loadTeachers = async () => {
     setLoading(true)
@@ -64,6 +78,186 @@ export default function Teachers() {
       }, 400)
     }
   }
+
+  // CSV RFC-4180 Compliant Parser with auto delimiter detection
+  const parseCSVText = (text) => {
+    const firstLine = text.split(/\r?\n/)[0] || "";
+    const commaCount = (firstLine.match(/,/g) || []).length;
+    const semiCount = (firstLine.match(/;/g) || []).length;
+    const delimiter = semiCount > commaCount ? ';' : ',';
+
+    let lines = [];
+    let row = [""];
+    let inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      let c = text[i];
+      let next = text[i+1];
+      if (c === '"') {
+        if (inQuotes && next === '"') {
+          row[row.length - 1] += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (c === delimiter && !inQuotes) {
+        row.push("");
+      } else if ((c === '\r' || c === '\n') && !inQuotes) {
+        if (c === '\r' && next === '\n') {
+          i++;
+        }
+        lines.push(row);
+        row = [""];
+      } else {
+        row[row.length - 1] += c;
+      }
+    }
+    if (row.length > 1 || row[0] !== "") {
+      lines.push(row);
+    }
+    return lines;
+  };
+
+  const handleCSVUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target.result;
+      const parsed = parseCSVText(text);
+      if (parsed.length === 0) {
+        alert("Empty file or invalid CSV");
+        return;
+      }
+      
+      const headers = parsed[0].map(h => h.trim());
+      const rows = parsed.slice(1)
+        .filter(r => r.some(cell => cell.trim()))
+        .map(r => {
+          if (r.length < headers.length) {
+            return [...r, ...Array(headers.length - r.length).fill("")];
+          } else if (r.length > headers.length) {
+            return r.slice(0, headers.length);
+          }
+          return r;
+        });
+      
+      setCsvHeaders(headers);
+      setCsvRows(rows);
+      
+      const mapping = {
+        full_name: '',
+        phone: '',
+        email: '',
+        specialty: '',
+        absence_penalty_rate: ''
+      };
+      
+      headers.forEach(h => {
+        const clean = h.toLowerCase().replace(/[\s_-]/g, '');
+        if (['fullname', 'name', 'nom', 'nomcomplet', 'الاسم', 'الاسمكامل', 'الاسمالكامل'].includes(clean)) {
+          mapping.full_name = h;
+        }
+        if (['phone', 'phone_number', 'phonenumber', 'tel', 'telephone', 'mobile', 'الهاتف', 'رقمالهاتف'].includes(clean)) {
+          mapping.phone = h;
+        }
+        if (['email', 'teacheremail', 'mail', 'emailaddress', 'البريد', 'البريدالإلكتروني', 'إيميل'].includes(clean)) {
+          mapping.email = h;
+        }
+        if (['specialty', 'specialite', 'course', 'subject', 'matiere', 'التخصص', 'المادة'].includes(clean)) {
+          mapping.specialty = h;
+        }
+        if (['penalty', 'penaltyrate', 'absencepenalty', 'rate', 'الغرامة', 'الخصم', 'سعرالغياب'].includes(clean)) {
+          mapping.absence_penalty_rate = h;
+        }
+      });
+      
+      setColumnMapping(mapping);
+      
+      const extraFieldsList = headers.filter(h => !Object.values(mapping).includes(h));
+      setSelectedExtraFields(extraFieldsList);
+    };
+    reader.readAsText(file, "UTF-8");
+  };
+
+  const handleImportExecute = async () => {
+    if (!columnMapping.full_name) {
+      alert(language === 'ar' ? "الرجاء ربط حقل الاسم الكامل أولاً" : "Please map the Full Name field first");
+      return;
+    }
+    
+    setImporting(true);
+    try {
+      const nameIdx = csvHeaders.indexOf(columnMapping.full_name);
+      const phoneIdx = columnMapping.phone ? csvHeaders.indexOf(columnMapping.phone) : -1;
+      const emailIdx = columnMapping.email ? csvHeaders.indexOf(columnMapping.email) : -1;
+      const specialtyIdx = columnMapping.specialty ? csvHeaders.indexOf(columnMapping.specialty) : -1;
+      const penaltyIdx = columnMapping.absence_penalty_rate ? csvHeaders.indexOf(columnMapping.absence_penalty_rate) : -1;
+      
+      const mappedTeachers = csvRows.map(row => {
+        return {
+          full_name: row[nameIdx]?.trim() || '',
+          phone: phoneIdx !== -1 ? row[phoneIdx]?.trim() : '',
+          email: emailIdx !== -1 ? row[emailIdx]?.trim() : '',
+          specialty: specialtyIdx !== -1 ? row[specialtyIdx]?.trim() : 'General',
+          absence_penalty_rate: penaltyIdx !== -1 ? (parseFloat(row[penaltyIdx]) || 1000) : 1000
+        };
+      }).filter(t => t.full_name);
+      
+      const res = await ipcService.bulkImportTeachers(mappedTeachers);
+      if (res && res.error) {
+        alert((language === 'ar' ? 'فشل الاستيراد' : 'Import failed') + ": " + res.error);
+      } else {
+        const count = res.count || 0;
+        const skipped = res.skipped || 0;
+        let msg = language === 'ar' ? `تم استيراد ${count} مدرس بنجاح.` : `Successfully imported ${count} teachers.`;
+        if (skipped > 0) {
+          msg += ` (${language === 'ar' ? `تخطى ${skipped} مكرر` : `skipped ${skipped} duplicates`})`;
+        }
+        alert(msg);
+        setIsImportModalOpen(false);
+        setCsvHeaders([]);
+        setCsvRows([]);
+        await loadTeachers();
+      }
+    } catch (err) {
+      console.error(err);
+      alert(language === 'ar' ? "فشل الاستيراد" : "Import failed");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleExportCSV = () => {
+    const headers = [
+      language === 'ar' ? 'الاسم الكامل' : 'Full Name',
+      language === 'ar' ? 'الهاتف' : 'Phone',
+      language === 'ar' ? 'البريد الإلكتروني' : 'Email',
+      language === 'ar' ? 'التخصص' : 'Specialty',
+      language === 'ar' ? 'معدل خصم الغياب' : 'Absence Penalty Rate',
+      language === 'ar' ? 'الحالة' : 'Status'
+    ]
+
+    const rows = teachers.map(t => [
+      `"${(t.full_name || '').replace(/"/g, '""')}"`,
+      `"${(t.phone || '')}"`,
+      `"${(t.email || '')}"`,
+      `"${(t.specialty || '')}"`,
+      `"${(t.absence_penalty_rate || 1000)}"`,
+      `"${(t.status || 'Active')}"`
+    ])
+
+    const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.setAttribute('href', url)
+    link.setAttribute('download', `Teachers_Export_${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  };
 
   useEffect(() => {
     loadTeachers()
@@ -250,13 +444,29 @@ export default function Teachers() {
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
           {hasPermission('teachers:write') && (
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-semibold tracking-wide shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 transition-all cursor-pointer shrink-0"
-            >
-              <UserPlus className="h-4 w-4" />
-              {t('teachers.addTeacher')}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsImportModalOpen(true)}
+                className="flex items-center gap-2 px-3 py-2.5 bg-slate-900 hover:bg-slate-850 hover:text-white text-slate-350 border border-slate-800 rounded-xl text-xs font-semibold tracking-wide shadow-md transition-all cursor-pointer shrink-0"
+              >
+                <Upload className="h-4 w-4" />
+                {language === 'ar' ? 'استيراد CSV' : 'Import CSV'}
+              </button>
+              <button
+                onClick={handleExportCSV}
+                className="flex items-center gap-2 px-3 py-2.5 bg-slate-900 hover:bg-slate-850 hover:text-white text-slate-350 border border-slate-800 rounded-xl text-xs font-semibold tracking-wide shadow-md transition-all cursor-pointer shrink-0"
+              >
+                <Download className="h-4 w-4" />
+                {language === 'ar' ? 'تصدير كـ Excel' : 'Export CSV'}
+              </button>
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-semibold tracking-wide shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 transition-all cursor-pointer shrink-0"
+              >
+                <UserPlus className="h-4 w-4" />
+                {t('teachers.addTeacher')}
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -802,6 +1012,249 @@ export default function Teachers() {
               </button>
             </div>
           </form>
+        </div>
+      </>
+    )}
+
+    {/* Import CSV Modal */}
+    {isImportModalOpen && (
+      <>
+        <div className="fixed inset-0 bg-slate-955/80 backdrop-blur-sm z-[150]" onClick={() => setIsImportModalOpen(false)} />
+        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col max-h-[85vh] z-[200] overflow-hidden" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+          
+          {/* Modal Header */}
+          <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2">
+              <Upload className="h-5 w-5 text-blue-400" />
+              <h3 className="font-bold text-sm text-white">
+                {language === 'ar' ? 'استيراد بيانات المعلمين' : 'Import Teachers Database'}
+              </h3>
+            </div>
+            <button 
+              onClick={() => setIsImportModalOpen(false)}
+              className="p-1.5 rounded-lg bg-slate-955 hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Modal Content */}
+          <div className="p-6 overflow-y-auto flex-1 space-y-6">
+            {csvRows.length === 0 ? (
+              // File Upload Zone
+              <div className="border-2 border-dashed border-slate-800 hover:border-blue-500/40 rounded-2xl p-10 flex flex-col items-center justify-center gap-3 bg-slate-955/20 transition-colors cursor-pointer relative group">
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCSVUpload}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                />
+                <div className="h-12 w-12 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Upload className="h-6 w-6" />
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-semibold text-slate-200">
+                    {language === 'ar' ? 'اختر ملف CSV لرفعه' : 'Choose CSV file to upload'}
+                  </p>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    {language === 'ar' ? 'تنسيق الملف المدعوم: .csv بترميز UTF-8' : 'Supported format: .csv encoded in UTF-8'}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              // Column Mapping & Preview
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                
+                {/* Column Mapper Column */}
+                <div className="lg:col-span-7 bg-slate-955/25 border border-slate-850 rounded-2xl p-5 space-y-5">
+                  <h4 className="text-xs font-bold text-slate-300 border-b border-slate-850 pb-2 flex items-center justify-between">
+                    <span>{language === 'ar' ? 'ربط الأعمدة' : 'Map Columns'}</span>
+                    <span className="text-[9px] text-emerald-400 font-mono">
+                      {language === 'ar' ? `تم تحميل ${csvRows.length} صف` : `Loaded ${csvRows.length} rows`}
+                    </span>
+                  </h4>
+                  
+                  <div className="space-y-4">
+                    {/* Full Name Mapping */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[9.5px] text-slate-450 uppercase font-bold tracking-wider flex items-center justify-between">
+                        <span>{language === 'ar' ? 'الاسم الكامل' : 'Full Name'} <span className="text-rose-500">*</span></span>
+                        {columnMapping.full_name && (
+                          <span className="text-[8px] text-emerald-500 font-mono lowercase">auto-matched</span>
+                        )}
+                      </label>
+                      <select
+                        value={columnMapping.full_name}
+                        onChange={(e) => setColumnMapping({ ...columnMapping, full_name: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500/40 cursor-pointer"
+                      >
+                        <option value="">-- {language === 'ar' ? 'اختر عموداً' : 'Select Column'} --</option>
+                        {csvHeaders.map(h => (
+                          <option key={h} value={h}>{h}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Phone Mapping */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[9.5px] text-slate-455 uppercase font-bold tracking-wider flex items-center justify-between">
+                        <span>{language === 'ar' ? 'الهاتف' : 'Phone'}</span>
+                        {columnMapping.phone && (
+                          <span className="text-[8px] text-emerald-500 font-mono lowercase">auto-matched</span>
+                        )}
+                      </label>
+                      <select
+                        value={columnMapping.phone}
+                        onChange={(e) => setColumnMapping({ ...columnMapping, phone: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500/40 cursor-pointer"
+                      >
+                        <option value="">-- {language === 'ar' ? 'تجاهل هذا الحقل' : 'Skip Field'} --</option>
+                        {csvHeaders.map(h => (
+                          <option key={h} value={h}>{h}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Email Mapping */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[9.5px] text-slate-455 uppercase font-bold tracking-wider flex items-center justify-between">
+                        <span>{language === 'ar' ? 'البريد الإلكتروني' : 'Email'}</span>
+                        {columnMapping.email && (
+                          <span className="text-[8px] text-emerald-500 font-mono lowercase">auto-matched</span>
+                        )}
+                      </label>
+                      <select
+                        value={columnMapping.email}
+                        onChange={(e) => setColumnMapping({ ...columnMapping, email: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500/40 cursor-pointer"
+                      >
+                        <option value="">-- {language === 'ar' ? 'تجاهل هذا الحقل' : 'Skip Field'} --</option>
+                        {csvHeaders.map(h => (
+                          <option key={h} value={h}>{h}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Specialty Mapping */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[9.5px] text-slate-455 uppercase font-bold tracking-wider flex items-center justify-between">
+                        <span>{language === 'ar' ? 'التخصص' : 'Specialty'}</span>
+                        {columnMapping.specialty && (
+                          <span className="text-[8px] text-emerald-500 font-mono lowercase">auto-matched</span>
+                        )}
+                      </label>
+                      <select
+                        value={columnMapping.specialty}
+                        onChange={(e) => setColumnMapping({ ...columnMapping, specialty: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500/40 cursor-pointer"
+                      >
+                        <option value="">-- {language === 'ar' ? 'تجاهل هذا الحقل' : 'Skip Field'} --</option>
+                        {csvHeaders.map(h => (
+                          <option key={h} value={h}>{h}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Penalty Rate Mapping */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[9.5px] text-slate-455 uppercase font-bold tracking-wider flex items-center justify-between">
+                        <span>{language === 'ar' ? 'معدل الخصم للغياب' : 'Absence Penalty Rate'}</span>
+                        {columnMapping.absence_penalty_rate && (
+                          <span className="text-[8px] text-emerald-500 font-mono lowercase">auto-matched</span>
+                        )}
+                      </label>
+                      <select
+                        value={columnMapping.absence_penalty_rate}
+                        onChange={(e) => setColumnMapping({ ...columnMapping, absence_penalty_rate: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500/40 cursor-pointer"
+                      >
+                        <option value="">-- {language === 'ar' ? 'تجاهل هذا الحقل' : 'Skip Field'} --</option>
+                        {csvHeaders.map(h => (
+                          <option key={h} value={h}>{h}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Preview Panel */}
+                <div className="lg:col-span-5 space-y-6">
+                  <div className="bg-slate-955/25 border border-slate-850 rounded-2xl p-5 space-y-3.5">
+                    <h4 className="text-xs font-bold text-slate-300 border-b border-slate-850 pb-2">
+                      {language === 'ar' ? 'معاينة الصف الأول' : 'First Row Preview'}
+                    </h4>
+                    
+                    <div className="space-y-3.5 text-xs">
+                      <div className="flex items-center justify-between py-1.5 border-b border-slate-850/40">
+                        <span className="text-slate-500">{language === 'ar' ? 'الاسم الكامل' : 'Full Name'}:</span>
+                        <span className="text-slate-200 font-medium font-semibold">
+                          {columnMapping.full_name ? csvRows[0]?.[csvHeaders.indexOf(columnMapping.full_name)] : '---'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between py-1.5 border-b border-slate-850/40">
+                        <span className="text-slate-500">{language === 'ar' ? 'الهاتف' : 'Phone'}:</span>
+                        <span className="text-slate-200 font-medium">
+                          {columnMapping.phone ? csvRows[0]?.[csvHeaders.indexOf(columnMapping.phone)] : '---'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between py-1.5 border-b border-slate-850/40">
+                        <span className="text-slate-500">{language === 'ar' ? 'البريد الإلكتروني' : 'Email'}:</span>
+                        <span className="text-slate-200 font-medium font-mono">
+                          {columnMapping.email ? csvRows[0]?.[csvHeaders.indexOf(columnMapping.email)] : '---'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between py-1.5 border-b border-slate-850/40">
+                        <span className="text-slate-500">{language === 'ar' ? 'التخصص' : 'Specialty'}:</span>
+                        <span className="text-slate-200 font-medium">
+                          {columnMapping.specialty ? csvRows[0]?.[csvHeaders.indexOf(columnMapping.specialty)] : '---'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between py-1.5">
+                        <span className="text-slate-500">{language === 'ar' ? 'معدل الخصم للغياب' : 'Absence Penalty'}:</span>
+                        <span className="text-slate-200 font-medium font-mono">
+                          {columnMapping.absence_penalty_rate ? csvRows[0]?.[csvHeaders.indexOf(columnMapping.absence_penalty_rate)] : '---'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Modal Footer */}
+          <div className="px-6 py-4 border-t border-slate-800 bg-slate-900/50 flex justify-between items-center shrink-0">
+            <button
+              onClick={() => {
+                setCsvHeaders([]);
+                setCsvRows([]);
+                setIsImportModalOpen(false);
+              }}
+              className="px-4 py-2 bg-slate-955 border border-slate-850 text-slate-400 hover:text-slate-200 text-xs font-semibold rounded-xl transition-all cursor-pointer"
+            >
+              {language === 'ar' ? 'تراجع' : 'Cancel'}
+            </button>
+            
+            {csvRows.length > 0 && (
+              <button
+                onClick={handleImportExecute}
+                disabled={importing}
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-blue-500/10 transition-all disabled:opacity-55 cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                {importing ? (
+                  <>
+                    <RefreshCw className="h-3 w-3 animate-spin" />
+                    {language === 'ar' ? 'جاري الاستيراد...' : 'Importing...'}
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4" />
+                    {language === 'ar' ? `استيراد ${csvRows.length} معلم` : `Import ${csvRows.length} Teachers`}
+                  </>
+                )}
+              </button>
+            )}
+          </div>
         </div>
       </>
     )}

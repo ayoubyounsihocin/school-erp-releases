@@ -15,6 +15,8 @@ const User = sequelize.define('User', {
 const Student = sequelize.define('Student', {
   full_name: { type: DataTypes.STRING, allowNull: false },
   phone: { type: DataTypes.STRING },
+  email: { type: DataTypes.STRING },
+  parent_email: { type: DataTypes.STRING },
   parent_phone: { type: DataTypes.STRING },
   status: { type: DataTypes.STRING, defaultValue: 'Active' }, // Active, Dropped, Graduated
   grade_level: { type: DataTypes.STRING, defaultValue: 'Primary' }, // Primary, Middle, High, University, Adult
@@ -214,5 +216,12 @@ Grade.belongsTo(Student);
 Course.hasMany(Grade, { onDelete: 'CASCADE' });
 Grade.belongsTo(Course);
 
+// 11. Email Templates (For custom communication)
+const EmailTemplate = sequelize.define('EmailTemplate', {
+  name: { type: DataTypes.STRING, unique: true, allowNull: false },
+  subject: { type: DataTypes.STRING, allowNull: false },
+  body: { type: DataTypes.TEXT, allowNull: false }
+});
+
 // Export everything
-export { sequelize, User, Student, Teacher, Course, Payment, Expense, AuditLog, Schedule, ScheduleRequest, SystemSetting, TeacherPayment, StudentCourses, Absence, Grade };
+export { sequelize, User, Student, Teacher, Course, Payment, Expense, AuditLog, Schedule, ScheduleRequest, SystemSetting, TeacherPayment, StudentCourses, Absence, Grade, EmailTemplate };

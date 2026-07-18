@@ -7,6 +7,7 @@ export const ipcService = {
   updateStudent: (id, data) => api.updateStudent ? api.updateStudent(id, data) : Promise.resolve({ error: 'IPC Offline' }),
   deleteStudent: (id) => api.deleteStudent ? api.deleteStudent(id) : Promise.resolve({ error: 'IPC Offline' }),
   bulkImportStudents: (studentsList) => api.bulkImportStudents ? api.bulkImportStudents(studentsList) : Promise.resolve({ error: 'IPC Offline' }),
+  bulkImportTeachers: (teachersList) => api.bulkImportTeachers ? api.bulkImportTeachers(teachersList) : Promise.resolve({ error: 'IPC Offline' }),
   enrollStudentInCourse: (studentId, courseId, enrollmentDate) => 
     api.enrollStudentInCourse ? api.enrollStudentInCourse(studentId, courseId, enrollmentDate) : Promise.resolve({ error: 'IPC Offline' }),
   getStudentCourses: (studentId) => api.getStudentCourses ? api.getStudentCourses(studentId) : Promise.resolve([]),
@@ -101,6 +102,15 @@ export const ipcService = {
   getGrades: (studentId) => api.getGrades ? api.getGrades(studentId) : Promise.resolve([]),
   addGrade: (data) => api.addGrade ? api.addGrade(data) : Promise.resolve({ error: 'IPC Offline' }),
   deleteGrade: (id) => api.deleteGrade ? api.deleteGrade(id) : Promise.resolve({ error: 'IPC Offline' }),
+  
+  // Email Communication
+  testSMTP: (config) => api.testSMTP ? api.testSMTP(config) : Promise.resolve({ success: false, error: 'IPC Offline' }),
+  sendEmail: (params) => api.sendEmail ? api.sendEmail(params) : Promise.resolve({ success: false, error: 'IPC Offline' }),
+  sendBulkEmails: (params) => api.sendBulkEmails ? api.sendBulkEmails(params) : Promise.resolve({ success: false, error: 'IPC Offline' }),
+  selectAttachmentFile: () => api.selectAttachmentFile ? api.selectAttachmentFile() : Promise.resolve(null),
+  getTemplates: () => api.getTemplates ? api.getTemplates() : Promise.resolve([]),
+  saveTemplate: (template) => api.saveTemplate ? api.saveTemplate(template) : Promise.resolve({ success: false, error: 'IPC Offline' }),
+  deleteTemplate: (id) => api.deleteTemplate ? api.deleteTemplate(id) : Promise.resolve({ success: false, error: 'IPC Offline' }),
 
   // Custom Window Controls
   minimizeWindow: () => api.minimizeWindow ? api.minimizeWindow() : undefined,

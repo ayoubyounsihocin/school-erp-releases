@@ -19,6 +19,13 @@ export default function Settings({ currentUser, onUserUpdate }) {
   const [licenseVerificationServerUrl, setLicenseVerificationServerUrl] = useState('')
   const [saving, setSaving] = useState(false)
 
+  // SMTP Settings
+  const [smtpEmail, setSmtpEmail] = useState('')
+  const [smtpPassword, setSmtpPassword] = useState('')
+  const [smtpHost, setSmtpHost] = useState('smtp.gmail.com')
+  const [smtpPort, setSmtpPort] = useState('465')
+  const [smtpTesting, setSmtpTesting] = useState(false)
+
   // Users management states
   const [users, setUsers] = useState([])
   const [loadingUsers, setLoadingUsers] = useState(false)
@@ -205,6 +212,12 @@ export default function Settings({ currentUser, onUserUpdate }) {
         if (settings.license_verification_server_url) setLicenseVerificationServerUrl(settings.license_verification_server_url)
         if (settings.default_receptionist_permissions) setDefaultPermissionsTemplate(settings.default_receptionist_permissions)
         if (settings.classrooms_count) setClassroomsCountSetting(settings.classrooms_count)
+        
+        // Load SMTP config
+        if (settings.smtp_email) setSmtpEmail(settings.smtp_email)
+        if (settings.smtp_password) setSmtpPassword(settings.smtp_password)
+        if (settings.smtp_host) setSmtpHost(settings.smtp_host)
+        if (settings.smtp_port) setSmtpPort(settings.smtp_port)
       } catch (err) {
         console.error("Failed to load settings:", err)
       }
@@ -308,7 +321,11 @@ export default function Settings({ currentUser, onUserUpdate }) {
           school_bank_details: schoolBankDetails,
           school_logo: schoolLogo,
           license_verification_server_url: licenseVerificationServerUrl,
-          classrooms_count: classroomsCountSetting
+          classrooms_count: classroomsCountSetting,
+          smtp_email: smtpEmail,
+          smtp_password: smtpPassword,
+          smtp_host: smtpHost,
+          smtp_port: smtpPort
         })
         if (res && res.error) {
           alert(res.error)
@@ -323,6 +340,36 @@ export default function Settings({ currentUser, onUserUpdate }) {
       alert(language === 'ar' ? "فشل في حفظ إعدادات النظام." : "Failed to save system settings.")
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleTestSMTP = async () => {
+    if (!smtpEmail || !smtpPassword || !smtpHost || !smtpPort) {
+      alert(language === 'ar' ? 'الرجاء إدخال جميع معلومات السيرفر للتحقق.' : 'Please fill out all SMTP details to test connection.')
+      return
+    }
+    setSmtpTesting(true)
+    try {
+      if (window.api && window.api.testSMTP) {
+        const res = await ipcService.testSMTP({
+          email: smtpEmail,
+          password: smtpPassword,
+          host: smtpHost,
+          port: smtpPort
+        })
+        if (res && res.success) {
+          alert(language === 'ar' ? 'تم الاتصال بخادم البريد بنجاح!' : 'SMTP connection tested successfully!')
+        } else {
+          alert(language === 'ar' ? `فشل الاتصال: ${res.error}` : `SMTP connection failed: ${res.error}`)
+        }
+      } else {
+        alert(language === 'ar' ? 'اختبار الاتصال غير متاح في بيئة العرض.' : 'SMTP testing is not available in mock view.')
+      }
+    } catch (err) {
+      console.error(err)
+      alert(language === 'ar' ? 'حدث خطأ أثناء اختبار الاتصال.' : 'Error testing SMTP connection.')
+    } finally {
+      setSmtpTesting(false)
     }
   }
 
@@ -616,10 +663,11 @@ export default function Settings({ currentUser, onUserUpdate }) {
         <div className="space-y-6">
           
           {/* Top Navigation Bar */}
-          <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 bg-slate-955/25 p-2 rounded-2xl border border-slate-850/60 backdrop-blur-md w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-6 gap-2 bg-slate-955/25 p-2 rounded-2xl border border-slate-850/60 backdrop-blur-md w-full">
             {[
               { id: 'general', label: t('settings.tabGeneral'), icon: Monitor, color: 'text-blue-400' },
               { id: 'security', label: t('settings.tabSecurity'), icon: Shield, color: 'text-emerald-400' },
+              { id: 'email', label: language === 'ar' ? 'إعدادات البريد' : 'Email Setup', icon: Mail, color: 'text-sky-400' },
               { id: 'backup', label: t('settings.tabBackup'), icon: Database, color: 'text-purple-400' },
               { id: 'license', label: t('settings.tabLicense'), icon: Key, color: 'text-amber-400' },
               { id: 'shortcuts', label: language === 'ar' ? 'اختصارات لوحة المفاتيح' : 'Keyboard Shortcuts', icon: Sliders, color: 'text-pink-400' }
@@ -1376,6 +1424,120 @@ export default function Settings({ currentUser, onUserUpdate }) {
                       </div>
                     </div>
 
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ==================== EMAIL CONFIGURATION (SMTP) ==================== */}
+            {activeSection === 'email' && (
+              <div className="space-y-6 animate-fade-in text-start flex-1">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2.5 border-b border-slate-800/60 pb-3 text-start">
+                    <div className="p-1.5 bg-sky-500/10 border border-sky-500/20 rounded-lg text-sky-455 animate-pulse">
+                      <Mail className="h-4.5 w-4.5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-200">
+                        {language === 'ar' ? 'إعدادات خادم البريد الإلكتروني (SMTP)' : 'Email SMTP Server Configuration'}
+                      </h3>
+                      <p className="text-[10px] text-slate-500 mt-0.5">
+                        {language === 'ar' ? 'قم بتهيئة الخادم الخاص بالمدرسة لإرسال الرسائل التنبيهية والتقارير لأولياء الأمور والمعلمين' : 'Configure the school official SMTP email to send alerts and notifications'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900/35 border border-slate-850/60 rounded-2xl p-6 space-y-6 backdrop-blur-md">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* SMTP Host */}
+                      <div className="flex flex-col gap-1.5 text-start">
+                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">
+                          {language === 'ar' ? 'عنوان خادم SMTP' : 'SMTP Host'}
+                        </label>
+                        <input
+                          type="text"
+                          value={smtpHost}
+                          onChange={(e) => setSmtpHost(e.target.value)}
+                          placeholder="e.g. smtp.gmail.com"
+                          className="w-full px-4 py-2.5 bg-slate-950/45 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold font-mono"
+                        />
+                      </div>
+
+                      {/* SMTP Port */}
+                      <div className="flex flex-col gap-1.5 text-start">
+                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">
+                          {language === 'ar' ? 'منفذ SMTP (Port)' : 'SMTP Port'}
+                        </label>
+                        <input
+                          type="text"
+                          value={smtpPort}
+                          onChange={(e) => setSmtpPort(e.target.value)}
+                          placeholder="e.g. 465 (SSL) or 587 (TLS)"
+                          className="w-full px-4 py-2.5 bg-slate-950/45 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold font-mono"
+                        />
+                      </div>
+
+                      {/* SMTP Email */}
+                      <div className="flex flex-col gap-1.5 text-start">
+                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">
+                          {language === 'ar' ? 'البريد الإلكتروني للمدرسة' : 'Sender Email Address'}
+                        </label>
+                        <input
+                          type="email"
+                          value={smtpEmail}
+                          onChange={(e) => setSmtpEmail(e.target.value)}
+                          placeholder="e.g. school.admin@gmail.com"
+                          className="w-full px-4 py-2.5 bg-slate-950/45 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold"
+                        />
+                      </div>
+
+                      {/* SMTP Password */}
+                      <div className="flex flex-col gap-1.5 text-start">
+                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">
+                          {language === 'ar' ? 'كلمة مرور التطبيق (App Password)' : 'App Password'}
+                        </label>
+                        <input
+                          type="password"
+                          value={smtpPassword}
+                          onChange={(e) => setSmtpPassword(e.target.value)}
+                          placeholder="••••••••••••••••"
+                          className="w-full px-4 py-2.5 bg-slate-950/45 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Instructions */}
+                    <div className="p-4 bg-slate-950/30 border border-slate-850/50 rounded-xl space-y-2 text-[10px] text-slate-400 leading-relaxed text-start">
+                      <p className="font-bold text-slate-350">
+                        {language === 'ar' ? '💡 كيفية إعداد حساب Gmail:' : '💡 How to setup using Gmail:'}
+                      </p>
+                      <ol className="list-decimal pl-4 space-y-1">
+                        <li>{language === 'ar' ? 'قم بتفعيل التحقق بخطوتين (2-Step Verification) في حساب Google الخاص بالمدرسة.' : 'Enable 2-Step Verification on your school Google account.'}</li>
+                        <li>{language === 'ar' ? 'اذهب إلى إعدادات الأمان وابحث عن "كلمات مرور التطبيقات" (App Passwords).' : 'Go to Security settings and search for "App Passwords".'}</li>
+                        <li>{language === 'ar' ? 'قم بتوليد كلمة مرور جديدة للتطبيقات واستخدمها في حقل كلمة المرور أعلاه بدلاً من كلمة المرور الأساسية للحساب.' : 'Generate a new App Password and paste it into the field above instead of your main password.'}</li>
+                        <li>{language === 'ar' ? 'استخدم المنفذ 465 (مع SSL) أو 587 (مع TLS).' : 'Use Port 465 (SSL) or Port 587 (TLS).'}</li>
+                      </ol>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-800/55">
+                      <button
+                        onClick={handleTestSMTP}
+                        disabled={smtpTesting || saving}
+                        className="px-4 py-2 bg-slate-850 hover:bg-slate-755 disabled:opacity-50 border border-slate-750 text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
+                      >
+                        {smtpTesting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                        {language === 'ar' ? 'اختبار الاتصال' : 'Test SMTP Connection'}
+                      </button>
+                      <button
+                        onClick={handleSaveSettings}
+                        disabled={smtpTesting || saving}
+                        className="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all shadow-lg shadow-blue-500/10 cursor-pointer border border-blue-500/10"
+                      >
+                        {saving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                        {t('settings.saveProfileBtn')}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

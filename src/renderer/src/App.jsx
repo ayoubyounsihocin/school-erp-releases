@@ -14,6 +14,7 @@ const Courses = lazy(() => import('./pages/Courses'))
 const Attendance = lazy(() => import('./pages/Attendance'))
 const Finances = lazy(() => import('./pages/Finances'))
 const Settings = lazy(() => import('./pages/Settings'))
+const Communication = lazy(() => import('./pages/Communication'))
 const Login = lazy(() => import('./components/Login'))
 
 function AppContent() {
@@ -140,6 +141,7 @@ function AppContent() {
             <Route path="courses" element={hasPermission('courses') ? <Courses /> : <Navigate to="/" replace />} />
             <Route path="attendance" element={hasPermission('attendance') ? <Attendance /> : <Navigate to="/" replace />} />
             <Route path="finances" element={hasPermission('finances') ? <Finances /> : <Navigate to="/" replace />} />
+            <Route path="communication" element={hasPermission('communication') ? <Communication /> : <Navigate to="/" replace />} />
             <Route path="settings" element={hasPermission('settings') ? <Settings currentUser={user} onUserUpdate={handleLogin} /> : <Navigate to="/" replace />} />
             <Route path="no-access" element={
               <div className="flex flex-col items-center justify-center h-[70vh] text-slate-300 p-6 text-center select-none animate-fade-in">

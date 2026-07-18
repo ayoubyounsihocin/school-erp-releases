@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react'
-import { Users, UserPlus, Phone, AlertCircle, RefreshCw, Search, X, Check, ArrowRight, BookOpen, Plus, Edit, Trash2, Printer, FileText, CreditCard, Award, Upload } from 'lucide-react'
+import { Users, UserPlus, Phone, AlertCircle, RefreshCw, Search, X, Check, ArrowRight, BookOpen, Plus, Edit, Trash2, Printer, FileText, CreditCard, Award, Upload, Download } from 'lucide-react'
 import { useLanguage } from '../i18n'
 import { ipcService } from '../services/ipcService'
 import CustomDatePicker from '../components/CustomDatePicker'
@@ -50,7 +49,9 @@ export default function Students() {
   const [columnMapping, setColumnMapping] = useState({
     full_name: '',
     phone: '',
+    email: '',
     parent_phone: '',
+    parent_email: '',
     grade_level: '',
     date_of_birth: ''
   })
@@ -179,7 +180,9 @@ export default function Students() {
       const mapping = {
         full_name: '',
         phone: '',
+        email: '',
         parent_phone: '',
+        parent_email: '',
         grade_level: '',
         date_of_birth: ''
       };
@@ -192,8 +195,14 @@ export default function Students() {
         if (['phone', 'phone_number', 'phonenumber', 'tel', 'telephone', 'mobile', 'الهاتف', 'رقمالهاتف'].includes(clean)) {
           mapping.phone = h;
         }
+        if (['email', 'studentemail', 'mail', 'emailaddress', 'البريد', 'البريدالإلكتروني', 'إيميل'].includes(clean)) {
+          mapping.email = h;
+        }
         if (['parentphone', 'parentmobile', 'guardianphone', 'parent', 'هاتفالولي', 'رقمالولي', 'الولي'].includes(clean)) {
           mapping.parent_phone = h;
+        }
+        if (['parentemail', 'parentmail', 'guardianemail', 'بريدالولي', 'إيميلالولي'].includes(clean)) {
+          mapping.parent_email = h;
         }
         if (['grade', 'level', 'gradelevel', 'class', 'classe', 'المستوى', 'الصف'].includes(clean)) {
           mapping.grade_level = h;
@@ -222,7 +231,9 @@ export default function Students() {
     try {
       const nameIdx = csvHeaders.indexOf(columnMapping.full_name);
       const phoneIdx = columnMapping.phone ? csvHeaders.indexOf(columnMapping.phone) : -1;
+      const emailIdx = columnMapping.email ? csvHeaders.indexOf(columnMapping.email) : -1;
       const parentPhoneIdx = columnMapping.parent_phone ? csvHeaders.indexOf(columnMapping.parent_phone) : -1;
+      const parentEmailIdx = columnMapping.parent_email ? csvHeaders.indexOf(columnMapping.parent_email) : -1;
       const gradeIdx = columnMapping.grade_level ? csvHeaders.indexOf(columnMapping.grade_level) : -1;
       const dobIdx = columnMapping.date_of_birth ? csvHeaders.indexOf(columnMapping.date_of_birth) : -1;
       
@@ -230,7 +241,9 @@ export default function Students() {
         const studentObj = {
           full_name: row[nameIdx]?.trim() || '',
           phone: phoneIdx !== -1 ? row[phoneIdx]?.trim() : '',
+          email: emailIdx !== -1 ? row[emailIdx]?.trim() : '',
           parent_phone: parentPhoneIdx !== -1 ? row[parentPhoneIdx]?.trim() : '',
+          parent_email: parentEmailIdx !== -1 ? row[parentEmailIdx]?.trim() : '',
           grade_level: gradeIdx !== -1 ? row[gradeIdx]?.trim() : 'Primary',
           date_of_birth: dobIdx !== -1 ? row[dobIdx]?.trim() : '',
           extra_info: {}
@@ -268,6 +281,41 @@ export default function Students() {
     } finally {
       setImporting(false);
     }
+  };
+
+  const handleExportCSV = () => {
+    const headers = [
+      language === 'ar' ? 'الاسم الكامل' : 'Full Name',
+      language === 'ar' ? 'الهاتف' : 'Phone',
+      language === 'ar' ? 'البريد الإلكتروني' : 'Email',
+      language === 'ar' ? 'هاتف ولي الأمر' : 'Parent Phone',
+      language === 'ar' ? 'بريد ولي الأمر' : 'Parent Email',
+      language === 'ar' ? 'المستوى الدراسي' : 'Grade Level',
+      language === 'ar' ? 'تاريخ الميلاد' : 'Date of Birth',
+      language === 'ar' ? 'الحالة' : 'Status'
+    ]
+
+    const rows = students.map(s => [
+      `"${(s.full_name || '').replace(/"/g, '""')}"`,
+      `"${(s.phone || '')}"`,
+      `"${(s.email || '')}"`,
+      `"${(s.parent_phone || '')}"`,
+      `"${(s.parent_email || '')}"`,
+      `"${(s.grade_level || 'Primary')}"`,
+      `"${(s.date_of_birth || '')}"`,
+      `"${(s.status || 'Active')}"`
+    ])
+
+    const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.setAttribute('href', url)
+    link.setAttribute('download', `Students_Export_${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   };
 
   // Grades Modal States
@@ -570,7 +618,9 @@ export default function Students() {
   const [formData, setFormData] = useState({
     full_name: '',
     phone: '',
+    email: '',
     parent_phone: '',
+    parent_email: '',
     status: 'Active',
     grade_level: 'Primary',
     date_of_birth: ''
@@ -997,7 +1047,9 @@ export default function Students() {
     setFormData({
       full_name: '',
       phone: '',
+      email: '',
       parent_phone: '',
+      parent_email: '',
       status: 'Active',
       grade_level: 'Primary',
       date_of_birth: ''
@@ -1013,7 +1065,9 @@ export default function Students() {
     setFormData({
       full_name: student.full_name || '',
       phone: student.phone || '',
+      email: student.email || '',
       parent_phone: student.parent_phone || '',
+      parent_email: student.parent_email || '',
       status: student.status || 'Active',
       grade_level: student.grade_level || 'Primary',
       date_of_birth: student.date_of_birth || ''
@@ -1039,7 +1093,9 @@ export default function Students() {
       setFormData({
         full_name: '',
         phone: '',
+        email: '',
         parent_phone: '',
+        parent_email: '',
         status: 'Active',
         grade_level: 'Primary',
         date_of_birth: ''
@@ -1226,6 +1282,13 @@ export default function Students() {
               >
                 <Upload className="h-4 w-4" />
                 {t('students.importCSV')}
+              </button>
+              <button
+                onClick={handleExportCSV}
+                className="flex items-center gap-2 px-3 py-2.5 bg-slate-900 hover:bg-slate-850 hover:text-white text-slate-350 border border-slate-800 rounded-xl text-xs font-semibold tracking-wide shadow-md transition-all cursor-pointer shrink-0"
+              >
+                <Download className="h-4 w-4" />
+                {language === 'ar' ? 'تصدير كـ Excel' : 'Export CSV'}
               </button>
               <button
                 id="add-student-btn"
@@ -1442,10 +1505,20 @@ export default function Students() {
                             <span className="text-[8.5px] text-slate-550 w-8">{language === 'ar' ? 'طالب:' : 'Std:'}</span>
                             <span>{student.phone}</span>
                           </div>
+                          {student.email && (
+                            <div className="text-[9px] text-slate-500 pl-9 max-w-[140px] truncate" title={student.email}>
+                              {student.email}
+                            </div>
+                          )}
                           <div className="flex items-center gap-1">
                             <span className="text-[8.5px] text-slate-550 w-8">{language === 'ar' ? 'ولي:' : 'Prnt:'}</span>
                             <span>{student.parent_phone || 'N/A'}</span>
                           </div>
+                          {student.parent_email && (
+                            <div className="text-[9px] text-slate-500 pl-9 max-w-[140px] truncate" title={student.parent_email}>
+                              {student.parent_email}
+                            </div>
+                          )}
                         </div>
                       </td>
 
@@ -1720,6 +1793,26 @@ export default function Students() {
                         </select>
                       </div>
 
+                      {/* Student Email Mapping */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[9.5px] text-slate-455 uppercase font-bold tracking-wider flex items-center justify-between">
+                          <span>{language === 'ar' ? 'البريد الإلكتروني للطالب' : 'Student Email'}</span>
+                          {columnMapping.email && (
+                            <span className="text-[8px] text-emerald-500 font-mono lowercase">auto-matched</span>
+                          )}
+                        </label>
+                        <select
+                          value={columnMapping.email}
+                          onChange={(e) => setColumnMapping({ ...columnMapping, email: e.target.value })}
+                          className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500/40 cursor-pointer"
+                        >
+                          <option value="">-- {language === 'ar' ? 'تجاهل هذا الحقل' : 'Skip Field'} --</option>
+                          {csvHeaders.map(h => (
+                            <option key={h} value={h}>{h}</option>
+                          ))}
+                        </select>
+                      </div>
+
                       {/* Parent Phone Mapping */}
                       <div className="flex flex-col gap-1.5">
                         <label className="text-[9.5px] text-slate-455 uppercase font-bold tracking-wider flex items-center justify-between">
@@ -1731,6 +1824,26 @@ export default function Students() {
                         <select
                           value={columnMapping.parent_phone}
                           onChange={(e) => setColumnMapping({ ...columnMapping, parent_phone: e.target.value })}
+                          className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500/40 cursor-pointer"
+                        >
+                          <option value="">-- {language === 'ar' ? 'تجاهل هذا الحقل' : 'Skip Field'} --</option>
+                          {csvHeaders.map(h => (
+                            <option key={h} value={h}>{h}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Parent Email Mapping */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[9.5px] text-slate-455 uppercase font-bold tracking-wider flex items-center justify-between">
+                          <span>{language === 'ar' ? 'بريد الولي الإلكتروني' : 'Parent Email'}</span>
+                          {columnMapping.parent_email && (
+                            <span className="text-[8px] text-emerald-500 font-mono lowercase">auto-matched</span>
+                          )}
+                        </label>
+                        <select
+                          value={columnMapping.parent_email}
+                          onChange={(e) => setColumnMapping({ ...columnMapping, parent_email: e.target.value })}
                           className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500/40 cursor-pointer"
                         >
                           <option value="">-- {language === 'ar' ? 'تجاهل هذا الحقل' : 'Skip Field'} --</option>
@@ -2016,6 +2129,19 @@ export default function Students() {
                   )}
                 </div>
 
+                {/* Student Email Field */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9.5px] text-slate-400 uppercase font-semibold">{language === 'ar' ? 'البريد الإلكتروني للطالب' : 'Student Email'}</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="e.g. student@example.com"
+                    className="px-3 py-2 bg-slate-955 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 transition-colors border-slate-800/80"
+                  />
+                </div>
+
                 {/* Parent Phone Field */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[9.5px] text-slate-400 uppercase font-semibold">{t('students.parentPlaceholder') || t('students.parentPhoneLabel') || 'Parent Phone'}</label>
@@ -2035,6 +2161,19 @@ export default function Students() {
                       {formErrors.parent_phone}
                     </span>
                   )}
+                </div>
+
+                {/* Parent Email Field */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9.5px] text-slate-400 uppercase font-semibold">{language === 'ar' ? 'البريد الإلكتروني لولي الأمر' : 'Parent Email'}</label>
+                  <input
+                    type="email"
+                    name="parent_email"
+                    value={formData.parent_email}
+                    onChange={handleInputChange}
+                    placeholder="e.g. parent@example.com"
+                    className="px-3 py-2 bg-slate-955 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 transition-colors border-slate-800/80"
+                  />
                 </div>
 
                 {/* Grade Level Dropdown Field */}

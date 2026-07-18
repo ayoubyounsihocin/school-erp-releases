@@ -16,7 +16,8 @@ import {
   FileText,
   ClipboardList,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Mail
 } from 'lucide-react'
 
 function Attendance() {
@@ -495,7 +496,9 @@ function Attendance() {
           reason: absRecord ? (absRecord.reason || '') : '',
           absenceId: absRecord ? absRecord.id : null,
           remaining,
-          date_of_birth: s.date_of_birth
+          date_of_birth: s.date_of_birth,
+          email: s.email,
+          parent_email: s.parent_email
         }
       })
       setSheetStudents(mapped)
@@ -517,6 +520,50 @@ function Attendance() {
       })
     )
     setIsDirty(true)
+  }
+
+  const handleSendAbsenceEmail = async (person) => {
+    if (!person.parent_email) {
+      alert(language === 'ar' ? 'البريد الإلكتروني لولي الأمر غير مسجل لهذا الطالب. يرجى إضافته في شاشة الطلاب أولاً.' : 'Parent email is not registered for this student. Please set it in Students page.')
+      return
+    }
+    
+    const confirmSend = confirm(
+      language === 'ar' 
+        ? `هل تريد إرسال بريد إلكتروني تنبيهي لولي أمر الطالب ${person.full_name}؟` 
+        : `Do you want to send an absence notification email to ${person.full_name}'s parent?`
+    )
+    if (!confirmSend) return
+
+    try {
+      const subject = language === 'ar' ? `إشعار غياب: ${person.full_name}` : `Absence Notification: ${person.full_name}`
+      const body = language === 'ar' 
+        ? `عزيزي ولي الأمر،\n\nنود إعلامكم بأن ابنكم/ابنتكم {student_name} قد تم تسجيل غيابه اليوم الموافق {date} عن حصة مادة {course_title}.\n\nنشكر تفهمكم وتعاونكم.\nإدارة المدرسة.`
+        : `Dear Parent,\n\nWe would like to inform you that your child {student_name} was marked absent today ({date}) for the course {course_title}.\n\nThank you for your cooperation.\nSchool Administration.`
+      
+      const selectedCourseObj = courses.find(c => String(c.id) === String(selectedCourseId))
+      const courseTitle = selectedCourseObj ? selectedCourseObj.title : 'Course'
+
+      const res = await ipcService.sendEmail({
+        to: person.parent_email,
+        subject,
+        body,
+        placeholders: {
+          student_name: person.full_name,
+          date: selectedDate,
+          course_title: courseTitle
+        }
+      })
+
+      if (res && res.success) {
+        alert(language === 'ar' ? 'تم إرسال إيميل التنبيه بنجاح!' : 'Absence alert email sent successfully!')
+      } else {
+        alert(language === 'ar' ? `فشل في إرسال الإيميل: ${res.error}` : `Failed to send email: ${res.error}`)
+      }
+    } catch (err) {
+      console.error(err)
+      alert(language === 'ar' ? 'حدث خطأ أثناء عملية الإرسال.' : 'Error occurred while sending email.')
+    }
   }
 
   const handleReasonChange = (personId, newReason) => {
@@ -1480,6 +1527,16 @@ function Attendance() {
                                       >
                                         {t('attendance.statusAbsentUnexcusedShort') || 'U'}
                                       </button>
+
+                                      {(person.status === 'Unexcused' || person.status === 'Excused') && (
+                                        <button
+                                          onClick={() => handleSendAbsenceEmail(person)}
+                                          title={language === 'ar' ? 'إرسال إيميل تنبيه لولي الأمر' : 'Send notification email to parent'}
+                                          className="h-7 w-7 rounded-lg text-xs font-semibold bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 transition-all flex items-center justify-center cursor-pointer ml-1.5 shrink-0"
+                                        >
+                                          <Mail className="h-3.5 w-3.5" />
+                                        </button>
+                                      )}
                                     </div>
                                   </td>
                                 </tr>

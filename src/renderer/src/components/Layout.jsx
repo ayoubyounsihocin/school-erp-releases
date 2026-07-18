@@ -695,6 +695,8 @@ export default function Layout({ user, onLogout, theme, toggleTheme }) {
         return t('sidebar.courses')
       case '/finances':
         return t('sidebar.finances')
+      case '/communication':
+        return language === 'ar' ? 'التواصل والبريد' : 'Communication & Mail'
       case '/settings':
         return t('sidebar.settings')
       default:

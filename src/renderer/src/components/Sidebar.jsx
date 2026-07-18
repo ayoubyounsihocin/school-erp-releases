@@ -16,7 +16,8 @@ import {
   Sliders,
   Shield,
   Database,
-  Key
+  Key,
+  Mail
 } from 'lucide-react'
 import { useLanguage } from '../i18n'
 import logoDark from '../assets/logo_dark.png'
@@ -40,6 +41,7 @@ export default function Sidebar({ user, onLogout, hasUnpaidStudents, hasPendingP
     { key: 'courses', name: 'Courses', path: '/courses', icon: BookOpen },
     { key: 'attendance', name: 'Attendance', path: '/attendance', icon: CalendarCheck },
     { key: 'finances', name: 'Finances', path: '/finances', icon: DollarSign },
+    { key: 'communication', name: 'Communication', path: '/communication', icon: Mail },
     { key: 'settings', name: 'Settings', path: '/settings', icon: Settings },
   ]
 
@@ -70,6 +72,7 @@ export default function Sidebar({ user, onLogout, hasUnpaidStudents, hasPendingP
       courses: language === 'ar' ? 'الدورات' : 'Courses',
       attendance: language === 'ar' ? 'الحضور' : 'Attendance',
       finances: language === 'ar' ? 'المالية' : 'Finances',
+      communication: language === 'ar' ? 'التواصل' : 'Communication',
       settings: language === 'ar' ? 'الإعدادات' : 'Settings'
     }
     const readable = list.map(k => names[k] || k).join(', ')

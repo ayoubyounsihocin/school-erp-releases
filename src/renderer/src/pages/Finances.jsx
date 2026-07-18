@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useLanguage } from '../i18n'
-import { DollarSign,ArrowUpRight,ArrowDownRight,Plus,RefreshCw,AlertCircle,Receipt,Tag,FileText,User,CreditCard,Search,X,Edit,Trash2,Printer,Download } from 'lucide-react'
+import { DollarSign,ArrowUpRight,ArrowDownRight,Plus,RefreshCw,AlertCircle,Receipt,Tag,FileText,User,CreditCard,Search,X,Edit,Trash2,Printer,Download,Mail } from 'lucide-react'
 import { ipcService } from '../services/ipcService'
 import { 
   getPeriodStartDateStr as getPeriodStartDateStrHelper,
@@ -725,6 +725,48 @@ export default function Finances() {
 
   // Payment form changes
   const [studentsWithDues, setStudentsWithDues] = useState([]) // added for balance references
+
+  const handleSendPaymentReminder = async (item) => {
+    const parentEmail = item.student.parent_email
+    if (!parentEmail) {
+      alert(language === 'ar' ? 'البريد الإلكتروني لولي الأمر غير مسجل لهذا الطالب. يرجى إضافته في شاشة الطلاب أولاً.' : 'Parent email is not registered for this student. Please set it in Students page.')
+      return
+    }
+
+    const confirmSend = confirm(
+      language === 'ar' 
+        ? `هل تريد إرسال تذكير بالدفع لولي أمر الطالب ${item.student.full_name} بقيمة ${item.balance} DA؟` 
+        : `Do you want to send a payment reminder to ${item.student.full_name}'s parent for ${item.balance} DA?`
+    )
+    if (!confirmSend) return
+
+    try {
+      const subject = language === 'ar' ? 'تذكير بالواجبات المالية المستحقة' : 'Tuition Fee Payment Reminder'
+      const body = language === 'ar' 
+        ? `عزيزي ولي الأمر،\n\nنود تذكيركم بأن هناك مستحقات مالية متأخرة لمادة {course_title} الخاصة بالطالب {student_name}.\n\nالمبلغ المستحق: {payment_amount} DA.\n\nيرجى تسوية المبلغ في أقرب وقت.\nنشكر تعاونكم.\nإدارة المدرسة.`
+        : `Dear Parent,\n\nThis is a friendly reminder that tuition fees are outstanding for the course {course_title} enrolled by {student_name}.\n\nOutstanding Balance: {payment_amount} DA.\n\nPlease clear the balance as soon as possible.\n\nThank you for your cooperation.\nSchool Administration.`
+      
+      const res = await ipcService.sendEmail({
+        to: parentEmail,
+        subject,
+        body,
+        placeholders: {
+          student_name: item.student.full_name,
+          course_title: item.course.title,
+          payment_amount: item.balance.toString()
+        }
+      })
+
+      if (res && res.success) {
+        alert(language === 'ar' ? 'تم إرسال تذكير الدفع بنجاح!' : 'Payment reminder email sent successfully!')
+      } else {
+        alert(language === 'ar' ? `فشل في إرسال الإيميل: ${res.error}` : `Failed to send email: ${res.error}`)
+      }
+    } catch (err) {
+      console.error(err)
+      alert(language === 'ar' ? 'حدث خطأ أثناء عملية إرسال التذكير.' : 'Error occurred while sending payment reminder.')
+    }
+  }
 
   // Helper to generate teacher receipt numbers
   const generateTeacherReceiptNumber = () => {
@@ -2280,6 +2322,14 @@ export default function Finances() {
                                 className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 border border-blue-500/20 text-white rounded-lg text-[10px] font-semibold transition-colors cursor-pointer"
                               >
                                 {t('finances.recordPayment')}
+                              </button>
+
+                              <button
+                                onClick={() => handleSendPaymentReminder(item)}
+                                title={language === 'ar' ? 'إرسال تذكير بالدفع لولي الأمر' : 'Send payment reminder email to parent'}
+                                className="px-2 py-1.5 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer ml-1.5 inline-flex items-center justify-center"
+                              >
+                                <Mail className="h-3.5 w-3.5" />
                               </button>
                             </td>
                           </tr>

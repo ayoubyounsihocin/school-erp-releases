@@ -5,8 +5,9 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { autoUpdater } from 'electron-updater'
 
 import icon from '../../resources/icon.png?asset'
-import { sequelize, User, Student, Payment, Expense, Course, Teacher, AuditLog, Schedule, ScheduleRequest, SystemSetting, TeacherPayment, StudentCourses, Absence, Grade } from './database/models.js'; // Good job adding this!
+import { sequelize, User, Student, Payment, Expense, Course, Teacher, AuditLog, Schedule, ScheduleRequest, SystemSetting, TeacherPayment, StudentCourses, Absence, Grade, EmailTemplate } from './database/models.js'; // Good job adding this!
 import { checkLicenseStatus, activateLicense, confirmActivationAndWipe, initMachineId } from './license.js';
+import { testSMTPConnection, sendEmail, sendBulkEmails } from './emailService.js';
 import { Op } from 'sequelize';
 import crypto from 'crypto';
 
@@ -662,7 +663,9 @@ app.whenReady().then(async () => {
           await Student.create({
             full_name: s.full_name.trim(),
             phone: s.phone ? s.phone.trim() : null,
+            email: s.email ? s.email.trim() : null,
             parent_phone: s.parent_phone ? s.parent_phone.trim() : null,
+            parent_email: s.parent_email ? s.parent_email.trim() : null,
             status: 'Active',
             grade_level: s.grade_level ? s.grade_level.trim() : 'Primary',
             date_of_birth: s.date_of_birth ? s.date_of_birth.trim() : null,
@@ -681,6 +684,62 @@ app.whenReady().then(async () => {
     } catch (error) {
       console.error("Error bulk importing students:", error);
       return { error: error.message || "Failed to bulk import students" };
+    }
+  });
+
+  ipcMain.handle('bulk-import-teachers', async (event, teachersList) => {
+    try {
+      if (!Array.isArray(teachersList)) {
+        return { error: "Invalid data format. Expected an array of teachers." };
+      }
+      
+      let importedCount = 0;
+      let skippedCount = 0;
+      
+      await sequelize.transaction(async (t) => {
+        for (const teacher of teachersList) {
+          if (!teacher.full_name || !teacher.full_name.trim()) {
+            skippedCount++;
+            continue;
+          }
+          
+          const whereClause = {
+            full_name: teacher.full_name.trim()
+          };
+          if (teacher.phone && teacher.phone.trim()) {
+            whereClause.phone = teacher.phone.trim();
+          }
+          if (teacher.email && teacher.email.trim()) {
+            whereClause.email = teacher.email.trim();
+          }
+          
+          const existing = await Teacher.findOne({ where: whereClause, transaction: t });
+          if (existing) {
+            skippedCount++;
+            continue;
+          }
+          
+          await Teacher.create({
+            full_name: teacher.full_name.trim(),
+            phone: teacher.phone ? teacher.phone.trim() : null,
+            email: teacher.email ? teacher.email.trim() : null,
+            specialty: teacher.specialty ? teacher.specialty.trim() : 'General',
+            status: 'Active',
+            absence_penalty_rate: teacher.absence_penalty_rate ? parseFloat(teacher.absence_penalty_rate) : 1000.0
+          }, { transaction: t });
+          importedCount++;
+        }
+      });
+      
+      await AuditLog.create({
+        action: 'BULK_IMPORT_TEACHERS',
+        description: `Successfully imported ${importedCount} teacher profiles via CSV. Skipped ${skippedCount} duplicates/invalid rows.`
+      });
+      
+      return { success: true, count: importedCount, skipped: skippedCount };
+    } catch (error) {
+      console.error("Error bulk importing teachers:", error);
+      return { error: error.message || "Failed to import teachers." };
     }
   });
 
@@ -2237,6 +2296,81 @@ app.whenReady().then(async () => {
   ipcMain.handle('relaunch-app', () => {
     app.relaunch();
     app.exit(0);
+  });
+
+  // --- Email System IPC Handlers ---
+  ipcMain.handle('test-smtp', async (event, config) => {
+    return await testSMTPConnection(config);
+  });
+
+  ipcMain.handle('send-email', async (event, mailParams) => {
+    return await sendEmail(mailParams);
+  });
+
+  ipcMain.handle('send-bulk-emails', async (event, bulkParams) => {
+    return await sendBulkEmails(bulkParams);
+  });
+
+  // Dialog to select a file attachment from the main process
+  ipcMain.handle('select-attachment-file', async () => {
+    const windows = BrowserWindow.getAllWindows();
+    const result = await dialog.showOpenDialog(windows[0], {
+      properties: ['openFile'],
+      title: 'Select Attachment File'
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+
+    const filePath = result.filePaths[0];
+    const pathParts = filePath.split(/[/\\]/);
+    const filename = pathParts[pathParts.length - 1];
+
+    return {
+      filename,
+      path: filePath
+    };
+  });
+
+  ipcMain.handle('get-templates', async () => {
+    try {
+      return await EmailTemplate.findAll();
+    } catch (error) {
+      console.error('Failed to get templates:', error);
+      return [];
+    }
+  });
+
+  ipcMain.handle('save-template', async (event, { id, name, subject, body }) => {
+    try {
+      if (id) {
+        const template = await EmailTemplate.findByPk(id);
+        if (template) {
+          await template.update({ name, subject, body });
+          return { success: true, template };
+        }
+      }
+      const newTemplate = await EmailTemplate.create({ name, subject, body });
+      return { success: true, template: newTemplate };
+    } catch (error) {
+      console.error('Failed to save template:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('delete-template', async (event, id) => {
+    try {
+      const template = await EmailTemplate.findByPk(id);
+      if (template) {
+        await template.destroy();
+        return { success: true };
+      }
+      return { success: false, error: 'Template not found' };
+    } catch (error) {
+      console.error('Failed to delete template:', error);
+      return { success: false, error: error.message };
+    }
   });
 
   // Helper to send messages to the renderer process
