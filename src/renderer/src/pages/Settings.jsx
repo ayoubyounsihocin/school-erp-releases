@@ -24,6 +24,7 @@ export default function Settings({ currentUser, onUserUpdate }) {
   const [smtpPassword, setSmtpPassword] = useState('')
   const [smtpHost, setSmtpHost] = useState('smtp.gmail.com')
   const [smtpPort, setSmtpPort] = useState('465')
+  const [smtpSenderName, setSmtpSenderName] = useState('')
   const [smtpTesting, setSmtpTesting] = useState(false)
 
   // Users management states
@@ -218,6 +219,7 @@ export default function Settings({ currentUser, onUserUpdate }) {
         if (settings.smtp_password) setSmtpPassword(settings.smtp_password)
         if (settings.smtp_host) setSmtpHost(settings.smtp_host)
         if (settings.smtp_port) setSmtpPort(settings.smtp_port)
+        if (settings.smtp_sender_name) setSmtpSenderName(settings.smtp_sender_name)
       } catch (err) {
         console.error("Failed to load settings:", err)
       }
@@ -325,7 +327,8 @@ export default function Settings({ currentUser, onUserUpdate }) {
           smtp_email: smtpEmail,
           smtp_password: smtpPassword,
           smtp_host: smtpHost,
-          smtp_port: smtpPort
+          smtp_port: smtpPort,
+          smtp_sender_name: smtpSenderName
         })
         if (res && res.error) {
           alert(res.error)
@@ -446,7 +449,7 @@ export default function Settings({ currentUser, onUserUpdate }) {
       return
     }
 
-    if (!window.confirm(language === 'ar' ? `هل أنت متأكد أنك تريد حذف حساب المستخدم "${name}" نهائياً؟` : `Are you sure you want to permanently delete user account "${name}"?`)) return;
+    if (!(await window.confirm(language === 'ar' ? `هل أنت متأكد أنك تريد حذف حساب المستخدم "${name}" نهائياً؟` : `Are you sure you want to permanently delete user account "${name}"?`))) return;
     
     setActionLoading(true)
     try {
@@ -582,7 +585,7 @@ export default function Settings({ currentUser, onUserUpdate }) {
       return;
     }
     
-    const confirmImport = window.confirm(
+    const confirmImport = await window.confirm(
       t('settings.importConfirm') || 
       "WARNING: Importing a backup will completely overwrite all your current database records. This cannot be undone. Are you sure you want to proceed?"
     );
@@ -1459,7 +1462,7 @@ export default function Settings({ currentUser, onUserUpdate }) {
                           value={smtpHost}
                           onChange={(e) => setSmtpHost(e.target.value)}
                           placeholder="e.g. smtp.gmail.com"
-                          className="w-full px-4 py-2.5 bg-slate-950/45 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold font-mono"
+                          className="w-full px-4 py-2.5 bg-slate-955/45 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-650 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold font-mono"
                         />
                       </div>
 
@@ -1473,7 +1476,7 @@ export default function Settings({ currentUser, onUserUpdate }) {
                           value={smtpPort}
                           onChange={(e) => setSmtpPort(e.target.value)}
                           placeholder="e.g. 465 (SSL) or 587 (TLS)"
-                          className="w-full px-4 py-2.5 bg-slate-950/45 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold font-mono"
+                          className="w-full px-4 py-2.5 bg-slate-955/45 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-650 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold font-mono"
                         />
                       </div>
 
@@ -1487,7 +1490,21 @@ export default function Settings({ currentUser, onUserUpdate }) {
                           value={smtpEmail}
                           onChange={(e) => setSmtpEmail(e.target.value)}
                           placeholder="e.g. school.admin@gmail.com"
-                          className="w-full px-4 py-2.5 bg-slate-950/45 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold"
+                          className="w-full px-4 py-2.5 bg-slate-955/45 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold"
+                        />
+                      </div>
+
+                      {/* SMTP Sender Name */}
+                      <div className="flex flex-col gap-1.5 text-start">
+                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">
+                          {language === 'ar' ? 'اسم مرسل البريد (Display Name)' : 'Email Sender Name'}
+                        </label>
+                        <input
+                          type="text"
+                          value={smtpSenderName}
+                          onChange={(e) => setSmtpSenderName(e.target.value)}
+                          placeholder={language === 'ar' ? 'مثال: مدرسة النجاح الخاصة' : 'e.g. Hope Private Academy'}
+                          className="w-full px-4 py-2.5 bg-slate-955/45 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-650 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold"
                         />
                       </div>
 
@@ -1501,22 +1518,35 @@ export default function Settings({ currentUser, onUserUpdate }) {
                           value={smtpPassword}
                           onChange={(e) => setSmtpPassword(e.target.value)}
                           placeholder="••••••••••••••••"
-                          className="w-full px-4 py-2.5 bg-slate-950/45 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold font-mono"
+                          className="w-full px-4 py-2.5 bg-slate-955/45 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold font-mono"
                         />
                       </div>
                     </div>
 
                     {/* Instructions */}
-                    <div className="p-4 bg-slate-950/30 border border-slate-850/50 rounded-xl space-y-2 text-[10px] text-slate-400 leading-relaxed text-start">
-                      <p className="font-bold text-slate-350">
-                        {language === 'ar' ? '💡 كيفية إعداد حساب Gmail:' : '💡 How to setup using Gmail:'}
-                      </p>
-                      <ol className="list-decimal pl-4 space-y-1">
-                        <li>{language === 'ar' ? 'قم بتفعيل التحقق بخطوتين (2-Step Verification) في حساب Google الخاص بالمدرسة.' : 'Enable 2-Step Verification on your school Google account.'}</li>
-                        <li>{language === 'ar' ? 'اذهب إلى إعدادات الأمان وابحث عن "كلمات مرور التطبيقات" (App Passwords).' : 'Go to Security settings and search for "App Passwords".'}</li>
-                        <li>{language === 'ar' ? 'قم بتوليد كلمة مرور جديدة للتطبيقات واستخدمها في حقل كلمة المرور أعلاه بدلاً من كلمة المرور الأساسية للحساب.' : 'Generate a new App Password and paste it into the field above instead of your main password.'}</li>
-                        <li>{language === 'ar' ? 'استخدم المنفذ 465 (مع SSL) أو 587 (مع TLS).' : 'Use Port 465 (SSL) or Port 587 (TLS).'}</li>
-                      </ol>
+                    <div className="p-4 bg-slate-950/30 border border-slate-850/50 rounded-xl space-y-3 text-[10px] text-slate-400 leading-relaxed text-start">
+                      <div>
+                        <p className="font-bold text-slate-350">
+                          {language === 'ar' ? '💡 كيفية إعداد حساب Gmail:' : '💡 How to setup using Gmail:'}
+                        </p>
+                        <ol className="list-decimal pl-4 space-y-1 mt-1">
+                          <li>{language === 'ar' ? 'قم بتفعيل التحقق بخطوتين (2-Step Verification) في حساب Google الخاص بالمدرسة.' : 'Enable 2-Step Verification on your school Google account.'}</li>
+                          <li>{language === 'ar' ? 'اذهب إلى إعدادات الأمان وابحث عن "كلمات مرور التطبيقات" (App Passwords).' : 'Go to Security settings and search for "App Passwords".'}</li>
+                          <li>{language === 'ar' ? 'قم بتوليد كلمة مرور جديدة للتطبيقات واستخدمها في حقل كلمة المرور أعلاه بدلاً من كلمة المرور الأساسية للحساب.' : 'Generate a new App Password and paste it into the field above instead of your main password.'}</li>
+                          <li>{language === 'ar' ? 'استخدم المنفذ 465 (مع SSL) أو 587 (مع TLS).' : 'Use Port 465 (SSL) or Port 587 (TLS).'}</li>
+                        </ol>
+                      </div>
+
+                      <div className="pt-2.5 border-t border-slate-850/50">
+                        <p className="font-bold text-amber-400">
+                          {language === 'ar' ? '⚠️ لتفادي وصول الرسائل إلى مجلد الرسائل غير المرغوبة (Spam):' : '⚠️ To prevent emails from landing in SPAM:'}
+                        </p>
+                        <ul className="list-disc pl-4 space-y-1 mt-1 text-[9.5px]">
+                          <li>{language === 'ar' ? 'تأكد من إعداد سجلات SPF و DKIM و DMARC في إعدادات النطاق (DNS) الخاص بالمدرسة.' : 'Ensure SPF, DKIM, and DMARC records are configured in your school domain DNS settings.'}</li>
+                          <li>{language === 'ar' ? 'تجنب استخدام البريد الشخصي المجاني لإرسال كميات كبيرة من الرسائل.' : 'Avoid using free personal emails (@gmail.com) for sending bulk messages.'}</li>
+                          <li>{language === 'ar' ? 'يُنصح باستخدام مزودي SMTP تجاريين مثل Resend أو SendGrid لضمان تسليم 100% للبريد الوارد.' : 'Consider commercial SMTP providers like Resend or SendGrid for guaranteed inbox delivery.'}</li>
+                        </ul>
+                      </div>
                     </div>
 
                     {/* Actions */}

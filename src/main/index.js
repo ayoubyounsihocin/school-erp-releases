@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, screen } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import fs from 'fs'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -45,10 +45,11 @@ function createWindow() {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 480,
-    height: 620,
+    height: 480,
     show: false,
     frame: false, // Make window frameless
-    transparent: true, // Make window background transparent
+    transparent: false, // Make window background opaque
+    backgroundColor: '#000000', // Black background matching dark mode theme
     hasShadow: true, // Keep OS window shadow
     autoHideMenuBar: true,
     resizable: false, // Start as non-resizable for login
@@ -59,30 +60,14 @@ function createWindow() {
     }
   })
 
-  let isCustomMaximized = false;
-  let preMaximizeBounds = null;
+  // Register maximize/unmaximize events to keep renderer in sync
+  mainWindow.on('maximize', () => {
+    mainWindow.webContents.send('window-maximized-state', true);
+  });
 
-  const customMaximize = () => {
-    if (mainWindow) {
-      preMaximizeBounds = mainWindow.getBounds();
-      const currentDisplay = screen.getDisplayMatching(preMaximizeBounds);
-      const { x, y, width, height } = currentDisplay.workArea;
-      mainWindow.setBounds({ x, y, width, height }, true);
-      isCustomMaximized = true;
-    }
-  };
-
-  const customUnmaximize = () => {
-    if (mainWindow) {
-      if (preMaximizeBounds) {
-        mainWindow.setBounds(preMaximizeBounds, true);
-      } else {
-        mainWindow.setSize(1280, 800, true);
-        mainWindow.center();
-      }
-      isCustomMaximized = false;
-    }
-  };
+  mainWindow.on('unmaximize', () => {
+    mainWindow.webContents.send('window-maximized-state', false);
+  });
 
   // IPC handlers for custom window controls
   ipcMain.on('window-minimize', () => {
@@ -91,16 +76,23 @@ function createWindow() {
 
   ipcMain.on('window-maximize', () => {
     if (mainWindow) {
-      if (isCustomMaximized) {
-        customUnmaximize();
+      if (mainWindow.isMaximized()) {
+        mainWindow.unmaximize();
       } else {
-        customMaximize();
+        mainWindow.maximize();
       }
     }
   });
 
   ipcMain.on('window-close', () => {
     if (mainWindow) mainWindow.close();
+  });
+
+  ipcMain.on('change-window-theme', (event, theme) => {
+    if (mainWindow) {
+      const bgColor = theme === 'light' ? '#f8fafc' : '#000000';
+      mainWindow.setBackgroundColor(bgColor);
+    }
   });
 
   ipcMain.on('show-alert-dialog', (event, message) => {
@@ -131,11 +123,11 @@ function createWindow() {
 
   ipcMain.on('resize-to-login', () => {
     if (mainWindow) {
-      customUnmaximize();
+      if (mainWindow.isMaximized()) mainWindow.unmaximize();
       mainWindow.setResizable(true);
-      mainWindow.setMinimumSize(480, 620);
-      mainWindow.setMaximumSize(480, 620);
-      mainWindow.setSize(480, 620);
+      mainWindow.setMinimumSize(480, 480);
+      mainWindow.setMaximumSize(480, 480);
+      mainWindow.setSize(480, 480);
       mainWindow.setResizable(false);
       mainWindow.center();
     }
@@ -155,34 +147,13 @@ function createWindow() {
       // as the "restored" size before maximizing the window.
       setTimeout(() => {
         if (mainWindow && !mainWindow.isDestroyed()) {
-          customMaximize();
+          mainWindow.maximize();
         }
       }, 150);
     }
   });
 
-  // Intercept native maximize/unmaximize attempts (e.g., from double-clicking the title bar)
-  mainWindow.on('will-maximize', (event) => {
-    event.preventDefault();
-    customMaximize();
-  });
 
-  mainWindow.on('will-unmaximize', (event) => {
-    event.preventDefault();
-    customUnmaximize();
-  });
-
-  // If the user drags the window away from the maximized position, update state
-  mainWindow.on('move', () => {
-    if (isCustomMaximized && mainWindow) {
-      const currentBounds = mainWindow.getBounds();
-      const currentDisplay = screen.getDisplayMatching(currentBounds);
-      const { x, y, width, height } = currentDisplay.workArea;
-      if (currentBounds.x !== x || currentBounds.y !== y || currentBounds.width !== width || currentBounds.height !== height) {
-        isCustomMaximized = false;
-      }
-    }
-  });
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
@@ -277,6 +248,26 @@ app.whenReady().then(async () => {
       if (tableCheck.length > 0) {
         const [results] = await sequelize.query("PRAGMA table_info(Students);");
         const columns = results.map(r => r.name);
+        if (!columns.includes('email')) {
+          await sequelize.query("ALTER TABLE Students ADD COLUMN email TEXT;");
+          console.log("Migrated: Added email column to Students table.");
+        }
+        if (!columns.includes('parent_email')) {
+          await sequelize.query("ALTER TABLE Students ADD COLUMN parent_email TEXT;");
+          console.log("Migrated: Added parent_email column to Students table.");
+        }
+        if (!columns.includes('parent_phone')) {
+          await sequelize.query("ALTER TABLE Students ADD COLUMN parent_phone TEXT;");
+          console.log("Migrated: Added parent_phone column to Students table.");
+        }
+        if (!columns.includes('status')) {
+          await sequelize.query("ALTER TABLE Students ADD COLUMN status TEXT DEFAULT 'Active';");
+          console.log("Migrated: Added status column to Students table.");
+        }
+        if (!columns.includes('grade_level')) {
+          await sequelize.query("ALTER TABLE Students ADD COLUMN grade_level TEXT DEFAULT 'Primary';");
+          console.log("Migrated: Added grade_level column to Students table.");
+        }
         if (!columns.includes('date_of_birth')) {
           await sequelize.query("ALTER TABLE Students ADD COLUMN date_of_birth TEXT;");
           console.log("Migrated: Added date_of_birth column to Students table.");
@@ -284,6 +275,10 @@ app.whenReady().then(async () => {
         if (!columns.includes('status_date')) {
           await sequelize.query("ALTER TABLE Students ADD COLUMN status_date TEXT;");
           console.log("Migrated: Added status_date column to Students table.");
+        }
+        if (!columns.includes('extra_info')) {
+          await sequelize.query("ALTER TABLE Students ADD COLUMN extra_info TEXT;");
+          console.log("Migrated: Added extra_info column to Students table.");
         }
       }
     } catch (migError) {
@@ -296,6 +291,18 @@ app.whenReady().then(async () => {
       if (tableCheck.length > 0) {
         const [results] = await sequelize.query("PRAGMA table_info(Teachers);");
         const columns = results.map(r => r.name);
+        if (!columns.includes('email')) {
+          await sequelize.query("ALTER TABLE Teachers ADD COLUMN email TEXT;");
+          console.log("Migrated: Added email column to Teachers table.");
+        }
+        if (!columns.includes('specialty')) {
+          await sequelize.query("ALTER TABLE Teachers ADD COLUMN specialty TEXT;");
+          console.log("Migrated: Added specialty column to Teachers table.");
+        }
+        if (!columns.includes('status')) {
+          await sequelize.query("ALTER TABLE Teachers ADD COLUMN status TEXT DEFAULT 'Active';");
+          console.log("Migrated: Added status column to Teachers table.");
+        }
         if (!columns.includes('absence_penalty_rate')) {
           await sequelize.query("ALTER TABLE Teachers ADD COLUMN absence_penalty_rate REAL DEFAULT 1000.0;");
           console.log("Migrated: Added absence_penalty_rate column to Teachers table.");
@@ -406,20 +413,6 @@ app.whenReady().then(async () => {
       console.error("Failed to run Courses table migrations:", migError);
     }
 
-    // Migrate missing columns on Students table to prevent SQL query failures
-    try {
-      const [tableCheck] = await sequelize.query("SELECT name FROM sqlite_master WHERE type='table' AND name='Students';");
-      if (tableCheck.length > 0) {
-        const [results] = await sequelize.query("PRAGMA table_info(Students);");
-        const columns = results.map(r => r.name);
-        if (!columns.includes('extra_info')) {
-          await sequelize.query("ALTER TABLE Students ADD COLUMN extra_info TEXT;");
-          console.log("Migrated: Added extra_info column to Students table.");
-        }
-      }
-    } catch (migError) {
-      console.error("Failed to run Students table migrations:", migError);
-    }
 
     await sequelize.sync();
     await sequelize.query('PRAGMA foreign_keys = ON;');
@@ -2372,7 +2365,8 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('get-templates', async () => {
     try {
-      return await EmailTemplate.findAll();
+      const templates = await EmailTemplate.findAll();
+      return templates.map(t => t.toJSON());
     } catch (error) {
       console.error('Failed to get templates:', error);
       return [];
@@ -2382,14 +2376,22 @@ app.whenReady().then(async () => {
   ipcMain.handle('save-template', async (event, { id, name, subject, body }) => {
     try {
       if (id) {
-        const template = await EmailTemplate.findByPk(id);
-        if (template) {
-          await template.update({ name, subject, body });
-          return { success: true, template };
+        const numericId = parseInt(id, 10);
+        if (!isNaN(numericId)) {
+          const template = await EmailTemplate.findByPk(numericId);
+          if (template) {
+            await template.update({ name, subject, body });
+            return { success: true, template: template.toJSON() };
+          }
         }
       }
+      // Check for name duplicates to avoid raw SQLite constraint crashes
+      const existing = await EmailTemplate.findOne({ where: { name } });
+      if (existing) {
+        return { success: false, error: 'A template with this name already exists. Please choose a different name.' };
+      }
       const newTemplate = await EmailTemplate.create({ name, subject, body });
-      return { success: true, template: newTemplate };
+      return { success: true, template: newTemplate.toJSON() };
     } catch (error) {
       console.error('Failed to save template:', error);
       return { success: false, error: error.message };
@@ -2398,7 +2400,9 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('delete-template', async (event, id) => {
     try {
-      const template = await EmailTemplate.findByPk(id);
+      const numericId = parseInt(id, 10);
+      if (isNaN(numericId)) return { success: false, error: 'Invalid template ID' };
+      const template = await EmailTemplate.findByPk(numericId);
       if (template) {
         await template.destroy();
         return { success: true };

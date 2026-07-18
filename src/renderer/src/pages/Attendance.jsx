@@ -157,34 +157,34 @@ function Attendance() {
     }
   };
 
-  const handleCourseChange = (newCourseId) => {
+  const handleCourseChange = async (newCourseId) => {
     if (isDirty) {
       const msg = language === 'ar'
         ? 'لديك تعديلات غير محفوظة. هل أنت متأكد من تغيير المادة؟ سيتم فقدان التغييرات.'
         : 'You have unsaved changes. Are you sure you want to change the course? Your changes will be lost.'
-      if (!confirm(msg)) return
+      if (!(await confirm(msg))) return
     }
     setSelectedCourseId(newCourseId)
     setIsDirty(false)
   }
 
-  const handleDateChange = (newDateStr) => {
+  const handleDateChange = async (newDateStr) => {
     if (isDirty) {
       const msg = language === 'ar'
         ? 'لديك تعديلات غير محفوظة. هل أنت متأكد من تغيير التاريخ؟ سيتم فقدان التغييرات.'
         : 'You have unsaved changes. Are you sure you want to change the date? Your changes will be lost.'
-      if (!confirm(msg)) return
+      if (!(await confirm(msg))) return
     }
     setSelectedDate(newDateStr)
     setIsDirty(false)
   }
 
-  const handleTabChange = (newTab) => {
+  const handleTabChange = async (newTab) => {
     if (activeTab === 'daily' && isDirty) {
       const msg = language === 'ar'
         ? 'لديك تعديلات غير محفوظة. هل أنت متأكد من الانتقال إلى تبويب آخر؟ سيتم فقدان التغييرات.'
         : 'You have unsaved changes. Are you sure you want to switch tabs? Your changes will be lost.'
-      if (!confirm(msg)) return
+      if (!(await confirm(msg))) return
     }
     setActiveTab(newTab)
   }
@@ -528,7 +528,7 @@ function Attendance() {
       return
     }
     
-    const confirmSend = confirm(
+    const confirmSend = await confirm(
       language === 'ar' 
         ? `هل تريد إرسال بريد إلكتروني تنبيهي لولي أمر الطالب ${person.full_name}؟` 
         : `Do you want to send an absence notification email to ${person.full_name}'s parent?`
@@ -695,7 +695,7 @@ function Attendance() {
   }
 
   const handleDeleteLog = async (id) => {
-    if (!confirm(t('common.confirmDelete') || "Are you sure you want to delete this record?")) return
+    if (!(await confirm(t('common.confirmDelete') || "Are you sure you want to delete this record?"))) return
     try {
       const res = await ipcService.deleteAbsence(id)
       if (res.error) {
@@ -941,7 +941,7 @@ function Attendance() {
 
   const handleDeleteSavedSheet = async (sheet) => {
     const confirmMessage = t('attendance.confirmDeleteSheet') || "Are you sure you want to delete this saved attendance sheet? This will delete all attendance records associated with it."
-    if (!confirm(confirmMessage)) return
+    if (!(await confirm(confirmMessage))) return
     
     setLoadingLogs(true)
     try {
@@ -960,7 +960,7 @@ function Attendance() {
   }
 
   const handleResetDailySheet = async () => {
-    if (!confirm(t('attendance.confirmDeleteSheet') || "Are you sure you want to reset this sheet? This will delete all attendance records associated with this session.")) return
+    if (!(await confirm(t('attendance.confirmDeleteSheet') || "Are you sure you want to reset this sheet? This will delete all attendance records associated with this session."))) return
     setSavingSheet(true)
     try {
       for (const record of existingAbsences) {

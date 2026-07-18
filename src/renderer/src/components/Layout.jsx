@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import UpdateModal from './UpdateModal'
-import { Bell, Calendar, Clock, AlertTriangle, Sun, Moon, RefreshCw, UserPlus, CreditCard, ShoppingCart, BookOpen, GraduationCap, Users, X, Activity, AlertCircle, Minus, Square } from 'lucide-react'
+import { Bell, Calendar, Clock, AlertTriangle, Sun, Moon, RefreshCw, UserPlus, CreditCard, ShoppingCart, BookOpen, GraduationCap, Users, X, Activity, AlertCircle, Minus, Square, Copy, HelpCircle } from 'lucide-react'
 import { useLanguage } from '../i18n'
 import { ipcService } from '../services/ipcService'
 import { toLocalYYYYMMDD } from '../utils/billing'
@@ -23,6 +23,40 @@ export default function Layout({ user, onLogout, theme, toggleTheme }) {
   const [updateError, setUpdateError] = useState('')
 
   const isRTL = language === 'ar'
+
+  const [dialogConfig, setDialogConfig] = useState(null)
+  const [isMaximized, setIsMaximized] = useState(false)
+
+  useEffect(() => {
+    if (window.electron && window.electron.ipcRenderer) {
+      const handleMaximizedState = (event, state) => {
+        setIsMaximized(state)
+      }
+      window.electron.ipcRenderer.on('window-maximized-state', handleMaximizedState)
+      return () => {
+        window.electron.ipcRenderer.removeListener('window-maximized-state', handleMaximizedState)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    window.confirm = (message) => {
+      return new Promise((resolve) => {
+        setDialogConfig({ type: 'confirm', message, resolve })
+      })
+    }
+
+    window.alert = (message) => {
+      return new Promise((resolve) => {
+        setDialogConfig({ type: 'alert', message, resolve })
+      })
+    }
+
+    return () => {
+      delete window.confirm
+      delete window.alert
+    }
+  }, [])
 
   const handleMinimize = () => {
     if (window.api && window.api.minimizeWindow) window.api.minimizeWindow()
@@ -728,7 +762,7 @@ export default function Layout({ user, onLogout, theme, toggleTheme }) {
   const hasPendingPayouts = alerts.some(a => a.id.startsWith('tch-payout-pending-'))
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 select-none">
+    <div className="flex h-full w-full overflow-hidden bg-slate-955 text-slate-100 select-none">
       {/* Sidebar Navigation */}
       <Sidebar 
         user={user} 
@@ -955,13 +989,17 @@ export default function Layout({ user, onLogout, theme, toggleTheme }) {
                   <button
                     onClick={handleMaximize}
                     className="h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer"
-                    title={t('common.maximize') || 'Maximize'}
+                    title={isMaximized ? (t('common.restore') || 'Restore') : (t('common.maximize') || 'Maximize')}
                   >
-                    <Square className="h-3.5 w-3.5" />
+                    {isMaximized ? (
+                      <Copy className="h-3.5 w-3.5 rotate-180" />
+                    ) : (
+                      <Square className="h-3.5 w-3.5" />
+                    )}
                   </button>
                   <button
                     onClick={handleClose}
-                    className="h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-450 hover:bg-rose-500/10 transition-all cursor-pointer"
+                    className="h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-455 hover:bg-rose-500/10 transition-all cursor-pointer"
                     title={t('common.close') || 'Close'}
                   >
                     <X className="h-4 w-4" />
@@ -979,13 +1017,17 @@ export default function Layout({ user, onLogout, theme, toggleTheme }) {
                   <button
                     onClick={handleMaximize}
                     className="h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer"
-                    title={t('common.maximize') || 'Maximize'}
+                    title={isMaximized ? (t('common.restore') || 'Restore') : (t('common.maximize') || 'Maximize')}
                   >
-                    <Square className="h-3.5 w-3.5" />
+                    {isMaximized ? (
+                      <Copy className="h-3.5 w-3.5 rotate-180" />
+                    ) : (
+                      <Square className="h-3.5 w-3.5" />
+                    )}
                   </button>
                   <button
                     onClick={handleClose}
-                    className="h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-450 hover:bg-rose-500/10 transition-all cursor-pointer"
+                    className="h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-455 hover:bg-rose-500/10 transition-all cursor-pointer"
                     title={t('common.close') || 'Close'}
                   >
                     <X className="h-4 w-4" />
@@ -1040,6 +1082,60 @@ export default function Layout({ user, onLogout, theme, toggleTheme }) {
           onInstall={installUpdateAndRestart}
           language={language}
         />
+
+        {/* Custom Global Alert/Confirm Dialog Modal */}
+        {dialogConfig && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fade-in font-sans">
+            <div className="w-full max-w-sm bg-slate-900/95 border border-slate-800 rounded-2xl shadow-2xl p-5 space-y-4 animate-scale-up backdrop-blur-md text-left rtl:text-right" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+              {/* Header / Icon */}
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-xl border shrink-0 ${dialogConfig.type === 'confirm' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
+                  {dialogConfig.type === 'confirm' ? (
+                    <HelpCircle className="h-4 w-4" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4" />
+                  )}
+                </div>
+                <h3 className="text-xs font-bold text-slate-100 uppercase tracking-wider">
+                  {dialogConfig.type === 'confirm' 
+                    ? (language === 'ar' ? 'تأكيد الإجراء' : 'Confirm Action')
+                    : (language === 'ar' ? 'تنبيه النظام' : 'System Notification')}
+                </h3>
+              </div>
+
+              {/* Message */}
+              <p className="text-[11px] text-slate-350 leading-relaxed font-semibold">
+                {dialogConfig.message}
+              </p>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2 pt-1">
+                {dialogConfig.type === 'confirm' && (
+                  <button
+                    onClick={() => {
+                      const resolve = dialogConfig.resolve;
+                      setDialogConfig(null);
+                      if (resolve) resolve(false);
+                    }}
+                    className="px-4 py-1.5 bg-slate-950 hover:bg-slate-850 border border-slate-850 hover:border-slate-800 text-slate-400 hover:text-slate-200 text-[10px] font-bold rounded-xl transition-all cursor-pointer"
+                  >
+                    {language === 'ar' ? 'إلغاء' : 'Cancel'}
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    const resolve = dialogConfig.resolve;
+                    setDialogConfig(null);
+                    if (resolve) resolve(true);
+                  }}
+                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold rounded-xl shadow-lg shadow-blue-500/15 hover:shadow-blue-500/25 transition-all cursor-pointer"
+                >
+                  {language === 'ar' ? 'موافق' : 'OK'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         
       </div>
     </div>

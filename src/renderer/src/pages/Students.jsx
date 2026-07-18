@@ -401,7 +401,7 @@ export default function Students() {
   }
 
   const handleDeleteGrade = async (id) => {
-    if (!confirm(t('common.confirmDelete') || "Delete this record?")) return;
+    if (!(await confirm(t('common.confirmDelete') || "Delete this record?"))) return;
     try {
       const res = await ipcService.deleteGrade(id);
       if (res && res.error) {
@@ -1120,7 +1120,7 @@ export default function Students() {
 
   // Delete student handler
   const handleDeleteStudent = async (id, name) => {
-    const confirmed = window.confirm(`t('common.confirmDelete')`)
+    const confirmed = await window.confirm(t('common.confirmDelete') || "Are you sure you want to delete this student?")
     if (!confirmed) return
 
     setIsSubmitting(true)
@@ -1194,7 +1194,7 @@ export default function Students() {
 
   // Unenroll student from course
   const handleUnenrollStudent = async (courseId, courseTitle) => {
-    if (!window.confirm(`Are you sure you want to unenroll ${selectedStudent.full_name} from "${courseTitle}"?`)) return;
+    if (!(await window.confirm(`Are you sure you want to unenroll ${selectedStudent.full_name} from "${courseTitle}"?`))) return;
     
     setEnrollActionLoading(true)
     try {

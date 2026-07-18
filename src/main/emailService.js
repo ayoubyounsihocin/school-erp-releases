@@ -9,12 +9,14 @@ async function getSMTPSettings() {
   const passwordSetting = await SystemSetting.findOne({ where: { key: 'smtp_password' } });
   const hostSetting = await SystemSetting.findOne({ where: { key: 'smtp_host' } });
   const portSetting = await SystemSetting.findOne({ where: { key: 'smtp_port' } });
+  const senderNameSetting = await SystemSetting.findOne({ where: { key: 'smtp_sender_name' } });
 
   return {
     email: emailSetting ? emailSetting.value : '',
     password: passwordSetting ? passwordSetting.value : '',
     host: hostSetting ? hostSetting.value : 'smtp.gmail.com',
     port: portSetting ? parseInt(portSetting.value, 10) : 465,
+    sender_name: senderNameSetting ? senderNameSetting.value : '',
   };
 }
 
@@ -90,7 +92,7 @@ export async function sendEmail({ to, subject, body, attachments = [], placehold
     const renderedBody = renderTemplate(body, placeholders);
 
     const mailOptions = {
-      from: `"${placeholderSettingsName(settings.email)}" <${settings.email}>`,
+      from: `"${settings.sender_name || placeholderSettingsName(settings.email)}" <${settings.email}>`,
       to,
       subject: renderedSubject,
       text: renderedBody.replace(/<[^>]*>/g, ''), // Strip HTML tags for plain text body
@@ -125,7 +127,7 @@ export async function sendBulkEmails({ recipients, subject, body, attachments = 
         const renderedBody = renderTemplate(body, recipient.placeholders);
 
         const mailOptions = {
-          from: `"${placeholderSettingsName(settings.email)}" <${settings.email}>`,
+          from: `"${settings.sender_name || placeholderSettingsName(settings.email)}" <${settings.email}>`,
           to: recipient.email,
           subject: renderedSubject,
           text: renderedBody.replace(/<[^>]*>/g, ''),

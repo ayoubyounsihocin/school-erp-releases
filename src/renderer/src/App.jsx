@@ -63,6 +63,10 @@ function AppContent() {
       root.classList.remove('light-mode')
     }
     localStorage.setItem('app-theme', theme)
+
+    if (window.electron && window.electron.ipcRenderer) {
+      window.electron.ipcRenderer.send('change-window-theme', theme)
+    }
   }, [theme, user])
 
   // Manage window size for login/main screen

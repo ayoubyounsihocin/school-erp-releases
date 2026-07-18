@@ -51,7 +51,7 @@ const en = {
     usernamePlaceholder: 'Username',
     passwordPlaceholder: 'Password',
     signIn: 'Sign In',
-    version: 'School ERP System v1.2',
+    version: 'School ERP System v1.3.0',
     loading: 'Signing In...',
     errorFields: 'Please fill in all fields.',
     errorInvalid: 'Invalid username or password.',
@@ -622,7 +622,8 @@ const en = {
     sheetResetSuccess: 'Attendance sheet deleted successfully. You can now re-take attendance.',
     dailyCompletedBanner: 'Attendance registry for this course, role, and date has been saved and completed.',
     reFillBtn: 'Re-fill Attendance',
-    viewSavedBtn: 'View Saved Sheet'
+    viewSavedBtn: 'View Saved Sheet',
+    noCourses: 'No courses'
   },
   customFeatures: {
     hasExam: 'Includes Exam',

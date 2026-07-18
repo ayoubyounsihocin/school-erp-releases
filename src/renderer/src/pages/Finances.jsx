@@ -733,7 +733,7 @@ export default function Finances() {
       return
     }
 
-    const confirmSend = confirm(
+    const confirmSend = await confirm(
       language === 'ar' 
         ? `هل تريد إرسال تذكير بالدفع لولي أمر الطالب ${item.student.full_name} بقيمة ${item.balance} DA؟` 
         : `Do you want to send a payment reminder to ${item.student.full_name}'s parent for ${item.balance} DA?`
@@ -1012,7 +1012,7 @@ export default function Finances() {
   }
 
   const handleDeletePayment = async (id) => {
-    if (!window.confirm("Are you sure you want to permanently delete this tuition payment? This action cannot be undone.")) return;
+    if (!(await window.confirm("Are you sure you want to permanently delete this tuition payment? This action cannot be undone."))) return;
     setActionLoading(true)
     try {
       const res = await ipcService.deletePayment(id)
@@ -1041,7 +1041,7 @@ export default function Finances() {
   }
 
   const handleDeleteExpense = async (id) => {
-    if (!window.confirm("t('common.confirmDelete')")) return;
+    if (!(await window.confirm(t('common.confirmDelete') || "Delete this record?"))) return;
     setActionLoading(true)
     try {
       const res = await ipcService.deleteExpense(id)
@@ -1159,7 +1159,7 @@ export default function Finances() {
 
   // Teacher Payout Delete Handler
   const handleDeleteTeacherPayment = async (id) => {
-    if (!window.confirm("Are you sure you want to permanently delete this instructor payment? This action cannot be undone.")) return;
+    if (!(await window.confirm("Are you sure you want to permanently delete this instructor payment? This action cannot be undone."))) return;
     setActionLoading(true);
     try {
       const res = await ipcService.deleteTeacherPayment(id);

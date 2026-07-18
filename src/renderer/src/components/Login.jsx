@@ -58,10 +58,7 @@ export default function Login({ onLogin, theme, toggleTheme }) {
   }
 
   return (
-    <div className="relative h-screen w-screen flex items-center justify-center bg-transparent overflow-hidden select-none" dir="ltr">
-      {/* Login Card Wrapper */}
-      <div className="w-full max-w-md p-8 bg-slate-955 dark:bg-slate-950 rounded-3xl relative z-10 animate-fade-in-up">
-        
+    <div className="relative h-full w-full flex items-center justify-center bg-transparent overflow-hidden select-none" dir="ltr">
         {/* Top-Left Controls: Language & Theme */}
         <div className="absolute top-4 left-5 flex items-center gap-2 z-20">
           {/* Language Switch Button */}
@@ -107,6 +104,9 @@ export default function Login({ onLogin, theme, toggleTheme }) {
             <X className="h-4 w-4" />
           </button>
         </div>
+
+      {/* Login Card Wrapper */}
+      <div className="w-full max-w-md p-8 bg-slate-955 dark:bg-transparent rounded-3xl relative z-10 animate-fade-in-up">
 
         {/* Branding header */}
         <div className="flex flex-col items-center text-center space-y-3 pt-8" dir={language === 'ar' ? 'rtl' : 'ltr'}>

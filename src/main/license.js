@@ -274,26 +274,13 @@ export async function checkLicenseStatus() {
         throw new Error(`Server returned status code ${response.status}`);
       }
     } catch (e) {
-      console.log("Online license key check failed (offline or server error). Falling back to offline signature validation.", e.message);
-      
-      // Enforce periodic online verification (must connect to internet at least once every 30 days)
-      const lastOnlineCheck = await SystemSetting.findOne({ where: { key: 'license_last_online_check' } });
-      const baseDateStr = lastOnlineCheck ? lastOnlineCheck.value : payload.createdAt;
-      
-      if (baseDateStr) {
-        const baseDate = new Date(baseDateStr);
-        const now = new Date();
-        const diffTime = Math.abs(now - baseDate);
-        const diffDays = diffTime / (1000 * 60 * 60 * 24);
-        if (diffDays > 30) {
-          return {
-            valid: false,
-            reason: 'INVALID',
-            error: 'This application has been offline for more than 30 days. Please connect to the internet to verify your license key.',
-            payload
-          };
-        }
-      }
+      console.log("Online license key check failed (offline or server error).", e.message);
+      return {
+        valid: false,
+        reason: 'OFFLINE',
+        error: 'Internet connection required: Please connect to the internet to verify your license key.',
+        payload
+      };
     }
 
     // Update last run date (only forward)
@@ -364,9 +351,19 @@ export async function activateLicense(keyStr) {
         if (data.schoolId) {
           await SystemSetting.upsert({ key: 'school_id', value: data.schoolId });
         }
+      } else if (response.status === 404 || response.status === 400 || response.status === 403 || response.status === 401) {
+        let errorMsg = 'This license key is invalid or has been revoked by the administrator.';
+        try {
+          const data = await response.json();
+          if (data && data.error) errorMsg = data.error;
+        } catch (_) {}
+        return { success: false, error: `Activation failed: ${errorMsg}` };
+      } else {
+        throw new Error(`Server returned status code ${response.status}`);
       }
     } catch (e) {
-      console.log("Online activation check failed (offline). Falling back to offline validation.", e.message);
+      console.log("Online activation check failed (offline).", e.message);
+      return { success: false, error: 'Internet connection required: Please connect to the internet to activate your license key.' };
     }
 
     // Check if there is an existing active license for a DIFFERENT holder

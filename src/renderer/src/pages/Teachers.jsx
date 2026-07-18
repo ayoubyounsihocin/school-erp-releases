@@ -399,7 +399,7 @@ export default function Teachers() {
   }
 
   const handleDeleteTeacher = async (id, name) => {
-    const confirmed = window.confirm(t('teachers.deleteConfirm', { name }))
+    const confirmed = await window.confirm(t('teachers.deleteConfirm', { name }))
     if (!confirmed) return
 
     setActionLoading(true)

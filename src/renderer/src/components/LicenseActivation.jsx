@@ -137,13 +137,7 @@ export default function LicenseActivation({ onActivated, theme, toggleTheme }) {
   const confirmWord = language === 'ar' ? 'مسح' : 'WIPE'
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-transparent text-slate-100 select-none p-4 font-sans" dir="ltr">
-      <div className={`w-full max-w-xl max-h-[580px] overflow-y-auto p-6 rounded-3xl relative animate-fade-in ${
-        theme === 'light'
-          ? 'bg-[#f8fafc] text-slate-100'
-          : 'bg-slate-955 dark:bg-slate-950 text-slate-100'
-      }`}>
-        
+    <div className="h-full w-full flex items-center justify-center bg-transparent text-slate-100 select-none p-4 font-sans" dir="ltr">
         {/* Top-Left Controls: Language & Theme */}
         <div className="absolute top-4 left-5 flex items-center gap-2 z-20">
           {/* Language Switch Button */}
@@ -189,6 +183,12 @@ export default function LicenseActivation({ onActivated, theme, toggleTheme }) {
             <X className="h-4 w-4" />
           </button>
         </div>
+
+      <div className={`w-full max-w-xl max-h-[580px] overflow-y-auto p-6 rounded-3xl relative animate-fade-in ${
+        theme === 'light'
+          ? 'bg-[#f8fafc] text-slate-100'
+          : 'bg-slate-955 dark:bg-slate-950 text-slate-100'
+      }`}>
 
         <div dir={isRTL ? 'rtl' : 'ltr'}>
           {/* ================================= SCREEN 1: PASTE KEY ================================= */}

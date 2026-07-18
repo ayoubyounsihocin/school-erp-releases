@@ -669,7 +669,7 @@ export default function Courses() {
   }
 
   const handleDeleteCourse = async (id, title) => {
-    const confirmed = window.confirm(`Are you sure you want to delete course syllabus "${title}"? All student enrollments for this course will be removed.`)
+    const confirmed = await window.confirm(`Are you sure you want to delete course syllabus "${title}"? All student enrollments for this course will be removed.`)
     if (!confirmed) return
 
     setActionLoading(true)
@@ -835,7 +835,7 @@ export default function Courses() {
   }
 
   const handleScheduleDelete = async (id) => {
-    const confirmed = window.confirm("Are you sure you want to remove this academic schedule slot?")
+    const confirmed = await window.confirm("Are you sure you want to remove this academic schedule slot?")
     if (!confirmed) return
     setActionLoading(true)
     try {
@@ -869,7 +869,7 @@ export default function Courses() {
   }
 
   const handleDeleteRequest = async (id) => {
-    if (!window.confirm(language === 'ar' ? 'هل أنت متأكد من حذف هذا الطلب؟' : 'Are you sure you want to delete this request?')) return;
+    if (!(await window.confirm(language === 'ar' ? 'هل أنت متأكد من حذف هذا الطلب؟' : 'Are you sure you want to delete this request?'))) return;
     setActionLoading(true)
     try {
       const res = await ipcService.deleteScheduleRequest(id)

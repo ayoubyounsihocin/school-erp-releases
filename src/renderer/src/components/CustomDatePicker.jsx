@@ -46,7 +46,6 @@ export default function CustomDatePicker({
   
   const containerRef = useRef(null);
   const buttonRef = useRef(null);
-  const [coords, setCoords] = useState({ top: 0, left: 0 });
 
   // Initialize selected date from value
   useEffect(() => {
@@ -79,47 +78,7 @@ export default function CustomDatePicker({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const updateCoords = () => {
-    if (buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      const isAr = language === 'ar';
-      
-      let left = rect.left;
-      if (isAr) {
-        left = rect.right - 280;
-      }
-      
-      if (left < 10) left = 10;
-      if (left + 280 > window.innerWidth - 10) {
-        left = window.innerWidth - 290;
-      }
 
-      let top = rect.bottom + 8;
-      const popoverHeight = 310;
-      if (top + popoverHeight > window.innerHeight - 10 && rect.top > popoverHeight + 10) {
-        top = rect.top - popoverHeight - 8;
-      }
-
-      setCoords({ top, left });
-    }
-  };
-
-  useEffect(() => {
-    if (isOpen) {
-      updateCoords();
-      window.addEventListener('resize', updateCoords);
-      const mainEl = document.querySelector('main');
-      if (mainEl) {
-        mainEl.addEventListener('scroll', updateCoords);
-      }
-      return () => {
-        window.removeEventListener('resize', updateCoords);
-        if (mainEl) {
-          mainEl.removeEventListener('scroll', updateCoords);
-        }
-      };
-    }
-  }, [isOpen, currentMonth, currentYear]);
 
   const isAr = language === 'ar';
 
@@ -277,11 +236,7 @@ export default function CustomDatePicker({
       {/* Floating Premium Calendar Popover */}
       {isOpen && (
         <div 
-          className="fixed z-[100] p-4 bg-slate-900 border border-slate-850 rounded-2xl shadow-2xl w-[280px] text-slate-200 animate-scale-in text-start select-none"
-          style={{
-            top: coords.top,
-            left: coords.left
-          }}
+          className={`absolute top-[calc(100%+6px)] ${isAr ? 'right-0' : 'left-0'} z-50 p-4 bg-slate-900 border border-slate-850 rounded-2xl shadow-2xl w-[280px] text-slate-200 animate-scale-in text-start select-none`}
         >
           {/* Header Month / Year Selectors */}
           <div className="flex items-center justify-between gap-1.5 mb-4">

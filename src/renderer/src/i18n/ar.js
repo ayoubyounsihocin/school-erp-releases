@@ -51,7 +51,7 @@ const ar = {
     usernamePlaceholder: 'اسم المستخدم',
     passwordPlaceholder: 'كلمة المرور',
     signIn: 'تسجيل الدخول',
-    version: 'نظام إدارة المدارس الإصدار 1.2',
+    version: 'نظام إدارة المدارس الإصدار 1.3.0',
     loading: 'جاري تسجيل الدخول...',
     errorFields: 'يرجى ملء جميع الحقول.',
     errorInvalid: 'اسم المستخدم أو كلمة المرور غير صحيحة.',
@@ -621,7 +621,8 @@ const ar = {
     sheetResetSuccess: 'تم مسح ورقة الحضور بنجاح ويمكنك الآن إعادة تسجيلها.',
     dailyCompletedBanner: 'تم حفظ وتأكيد ورقة حضور هذه الحصة لهذا اليوم بنجاح.',
     reFillBtn: 'إعادة تحضير الحضور',
-    viewSavedBtn: 'عرض الورقة المحفوظة'
+    viewSavedBtn: 'عرض الورقة المحفوظة',
+    noCourses: 'لا توجد مواد'
   },
   customFeatures: {
     hasExam: 'يحتوي على امتحان',
