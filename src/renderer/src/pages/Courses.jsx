@@ -565,7 +565,11 @@ export default function Courses() {
         payout_type: formData.payout_type || 'Percentage',
         fixed_payout_amount: formData.payout_type === 'Fixed' ? parseFloat(formData.fixed_payout_amount || 0) : 0.0
       }
-      await ipcService.addCourse(payload)
+      const res = await ipcService.addCourse(payload)
+      if (res && res.error) {
+        alert(res.error || "Failed to add course");
+        return;
+      }
 
       // Reset fields
       setFormData({
@@ -583,6 +587,7 @@ export default function Courses() {
       setIsAddModalOpen(false)
     } catch (err) {
       console.error("Failed to add course:", err)
+      alert(err.message || "Failed to add course.");
     } finally {
       setActionLoading(false)
     }
@@ -648,12 +653,16 @@ export default function Courses() {
         payout_type: editFormData.payout_type || 'Percentage',
         fixed_payout_amount: editFormData.payout_type === 'Fixed' ? parseFloat(editFormData.fixed_payout_amount || 0) : 0.0
       }
-      await ipcService.updateCourse(selectedCourse.id, payload)
+      const res = await ipcService.updateCourse(selectedCourse.id, payload)
+      if (res && res.error) {
+        alert(res.error || "Failed to update course");
+        return;
+      }
       setIsEditModalOpen(false)
       await loadData()
     } catch (err) {
       console.error("Failed to update course:", err)
-      alert("Failed to update course details.")
+      alert(err.message || "Failed to update course details.")
     } finally {
       setActionLoading(false)
     }

@@ -606,7 +606,7 @@ app.whenReady().then(async () => {
       return newStudent.toJSON();
     } catch (error) {
       console.error("Error adding student:", error);
-      return { error: "Failed to add student" };
+      return { error: error.message || "Failed to add student" };
     }
   });
 
@@ -623,7 +623,7 @@ app.whenReady().then(async () => {
       return student.toJSON();
     } catch (error) {
       console.error("Error updating student:", error);
-      return { error: "Failed to update student" };
+      return { error: error.message || "Failed to update student" };
     }
   });
 
@@ -1091,7 +1091,7 @@ app.whenReady().then(async () => {
       return newTeacher.toJSON();
     } catch (error) {
       console.error("Error adding teacher:", error);
-      return { error: "Failed to add teacher" };
+      return { error: error.message || "Failed to add teacher" };
     }
   });
 
@@ -1108,7 +1108,7 @@ app.whenReady().then(async () => {
       return teacher.toJSON();
     } catch (error) {
       console.error("Error updating teacher:", error);
-      return { error: "Failed to update teacher" };
+      return { error: error.message || "Failed to update teacher" };
     }
   });
 

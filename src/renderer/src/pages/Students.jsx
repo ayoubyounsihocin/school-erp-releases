@@ -1031,9 +1031,6 @@ export default function Students() {
     if (!formData.full_name.trim()) {
       errors.full_name = t('students.validationNameRequired')
     }
-    if (!formData.phone.trim()) {
-      errors.phone = t('students.validationInvalidPhone')
-    }
     if (!formData.parent_phone.trim()) {
       errors.parent_phone = t('students.validationParentRequired') || 'Parent Phone is required'
     }
@@ -1084,10 +1081,16 @@ export default function Students() {
 
     setIsSubmitting(true)
     try {
+      let res;
       if (isEditMode && selectedStudent) {
-        await ipcService.updateStudent(selectedStudent.id, formData)
+        res = await ipcService.updateStudent(selectedStudent.id, formData)
       } else {
-        await ipcService.addStudent(formData)
+        res = await ipcService.addStudent(formData)
+      }
+
+      if (res && res.error) {
+        alert(res.error || (isEditMode ? "Failed to update student" : "Failed to add student"));
+        return;
       }
       
       // Reset form fields
@@ -1109,6 +1112,7 @@ export default function Students() {
       await loadStudents()
     } catch (err) {
       console.error("Failed to save student:", err)
+      alert(err.message || "Failed to save student record");
     } finally {
       setIsSubmitting(false)
     }

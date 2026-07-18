@@ -305,7 +305,11 @@ export default function Teachers() {
 
     setActionLoading(true)
     try {
-      await ipcService.addTeacher(formData)
+      const res = await ipcService.addTeacher(formData)
+      if (res && res.error) {
+        alert(res.error || "Failed to add teacher");
+        return;
+      }
       
       // Reset Form
       setFormData({
@@ -322,7 +326,7 @@ export default function Teachers() {
       setIsAddModalOpen(false)
     } catch (err) {
       console.error("Failed to add teacher:", err)
-      alert("Failed to save teacher record.")
+      alert(err.message || "Failed to save teacher record.")
     } finally {
       setActionLoading(false)
     }
@@ -379,12 +383,16 @@ export default function Teachers() {
 
     setActionLoading(true)
     try {
-      await ipcService.updateTeacher(selectedTeacher.id, editFormData)
+      const res = await ipcService.updateTeacher(selectedTeacher.id, editFormData)
+      if (res && res.error) {
+        alert(res.error || "Failed to update teacher details");
+        return;
+      }
       setIsEditModalOpen(false)
       await loadTeachers()
     } catch (err) {
       console.error("Failed to update teacher:", err)
-      alert("Failed to update teacher details.")
+      alert(err.message || "Failed to update teacher details.")
     } finally {
       setActionLoading(false)
     }
