@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Users, UserPlus, Phone, AlertCircle, RefreshCw, Search, X, Check, ArrowRight, BookOpen, Plus, Edit, Trash2, Printer, FileText, CreditCard, Award, Upload, Download } from 'lucide-react'
 import { useLanguage } from '../i18n'
 import { ipcService } from '../services/ipcService'

@@ -678,6 +678,7 @@ export default function Layout({ user, onLogout, theme, toggleTheme }) {
       case 'RECORD_EXPENSE': return isAr ? 'تسجيل مصاريف' : 'New Expense Recorded';
       case 'DELETE_EXPENSE': return isAr ? 'حذف مصاريف' : 'Expense Deleted';
       case 'RECORD_ABSENCE': return isAr ? 'تسجيل غياب' : 'Absence Recorded';
+      case 'SEND_BULK_EMAIL': return isAr ? 'إرسال بريد جماعي' : 'Bulk Email Broadcasted';
       default: return action.replace(/_/g, ' ');
     }
   }

@@ -2308,7 +2308,18 @@ app.whenReady().then(async () => {
   });
 
   ipcMain.handle('send-bulk-emails', async (event, bulkParams) => {
-    return await sendBulkEmails(bulkParams);
+    const res = await sendBulkEmails(bulkParams);
+    if (res && res.success) {
+      try {
+        await AuditLog.create({
+          action: 'SEND_BULK_EMAIL',
+          description: `Sent bulk email broadcast to ${res.successCount}/${res.total} recipients. Subject: "${bulkParams.subject}"`
+        });
+      } catch (err) {
+        console.error('Failed to log bulk email audit log:', err);
+      }
+    }
+    return res;
   });
 
   // Dialog to select a file attachment from the main process

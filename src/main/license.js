@@ -1,33 +1,74 @@
 import crypto from 'crypto';
 import https from 'https';
-import { exec } from 'child_process';
+import fs from 'fs';
+import { join } from 'path';
+import { execSync } from 'child_process';
+import { app } from 'electron';
 import { SystemSetting } from './database/models.js';
 
 let cachedMachineId = null;
 
-// Asynchronous hardware UUID initializer called at app startup
-export function initMachineId() {
-  return new Promise((resolve) => {
-    if (cachedMachineId) return resolve(cachedMachineId);
-    exec('powershell -Command "(Get-CimInstance Win32_ComputerSystemProduct).UUID"', { timeout: 2000 }, (error, stdout) => {
-      if (!error && stdout) {
-        const id = stdout.trim();
-        if (id && id.length > 5) {
-          cachedMachineId = id;
-          console.log("Hardware UUID initialized:", cachedMachineId);
-          return resolve(id);
-        }
-      }
-      console.log("PowerShell hardware UUID fetch failed or timed out. Using fallback ID.");
-      cachedMachineId = 'fallback-pc-id-1234';
-      resolve(cachedMachineId);
-    });
-  });
+// Helper to get filepath for fallback ID
+function getMachineIdFilePath() {
+  try {
+    const userDataPath = app.getPath('userData');
+    return join(userDataPath, 'machine_id.json');
+  } catch (e) {
+    return null;
+  }
 }
 
 // Instant synchronous getter (returns cached ID immediately without blocking)
 export function getMachineHardwareId() {
-  return cachedMachineId || 'fallback-pc-id-1234';
+  if (cachedMachineId) return cachedMachineId;
+
+  // 1. Try to read registry MachineGuid via native reg.exe (takes ~5ms, extremely stable)
+  try {
+    const output = execSync('reg query HKLM\\SOFTWARE\\Microsoft\\Cryptography /v MachineGuid', {
+      encoding: 'utf8',
+      timeout: 1000,
+      stdio: ['ignore', 'pipe', 'ignore'] // ignore stderr to prevent throwing on missing keys
+    });
+    const match = output.match(/MachineGuid\s+REG_SZ\s+(\S+)/i);
+    if (match && match[1]) {
+      cachedMachineId = match[1].trim();
+      console.log("Hardware UUID initialized (Registry REG):", cachedMachineId);
+      return cachedMachineId;
+    }
+  } catch (err) {
+    console.log("Registry REG query failed or timed out. Trying fallback file.");
+  }
+
+  // 2. Persistent File-based Fallback
+  try {
+    const filePath = getMachineIdFilePath();
+    if (filePath && fs.existsSync(filePath)) {
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      if (data && data.machineId) {
+        cachedMachineId = data.machineId.trim();
+        console.log("Hardware UUID initialized (File Cache):", cachedMachineId);
+        return cachedMachineId;
+      }
+    }
+    
+    // Generate a new persistent UUID
+    const newId = crypto.randomUUID();
+    if (filePath) {
+      fs.writeFileSync(filePath, JSON.stringify({ machineId: newId }), 'utf8');
+    }
+    cachedMachineId = newId;
+    console.log("Hardware UUID generated and cached:", cachedMachineId);
+    return cachedMachineId;
+  } catch (fileErr) {
+    console.error("Failed to read/write persistent machine ID file:", fileErr);
+    cachedMachineId = 'fallback-pc-id-1234';
+    return cachedMachineId;
+  }
+}
+
+// Asynchronous hardware UUID initializer called at app startup (for compatibility)
+export function initMachineId() {
+  return Promise.resolve(getMachineHardwareId());
 }
 
 const PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
@@ -192,7 +233,8 @@ export async function checkLicenseStatus() {
         },
         signal: AbortSignal.timeout(4000)
       });
-      if (response.ok) {
+      
+      if (response.status === 200) {
         const data = await response.json();
         if (data.valid === false) {
           return {
@@ -211,9 +253,47 @@ export async function checkLicenseStatus() {
         if (data.schoolId) {
           await SystemSetting.upsert({ key: 'school_id', value: data.schoolId });
         }
+        // Mark last successful online check
+        await SystemSetting.upsert({ key: 'license_last_online_check', value: nowStr });
+      } else if (response.status === 404 || response.status === 400 || response.status === 403 || response.status === 401) {
+        // If the server explicitly returns a Client Error, the key is invalid/revoked/deleted!
+        let errorMsg = 'This license key is invalid or has been revoked by the administrator.';
+        try {
+          const data = await response.json();
+          if (data && data.error) errorMsg = data.error;
+        } catch (_) {}
+        
+        return {
+          valid: false,
+          reason: 'INVALID',
+          error: errorMsg,
+          payload
+        };
+      } else {
+        // For server errors (5xx), throw to go to offline check
+        throw new Error(`Server returned status code ${response.status}`);
       }
     } catch (e) {
       console.log("Online license key check failed (offline or server error). Falling back to offline signature validation.", e.message);
+      
+      // Enforce periodic online verification (must connect to internet at least once every 30 days)
+      const lastOnlineCheck = await SystemSetting.findOne({ where: { key: 'license_last_online_check' } });
+      const baseDateStr = lastOnlineCheck ? lastOnlineCheck.value : payload.createdAt;
+      
+      if (baseDateStr) {
+        const baseDate = new Date(baseDateStr);
+        const now = new Date();
+        const diffTime = Math.abs(now - baseDate);
+        const diffDays = diffTime / (1000 * 60 * 60 * 24);
+        if (diffDays > 30) {
+          return {
+            valid: false,
+            reason: 'INVALID',
+            error: 'This application has been offline for more than 30 days. Please connect to the internet to verify your license key.',
+            payload
+          };
+        }
+      }
     }
 
     // Update last run date (only forward)

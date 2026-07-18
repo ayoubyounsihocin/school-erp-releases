@@ -41,6 +41,7 @@ const en = {
     courses: 'Courses',
     attendance: 'Attendance',
     finances: 'Finances',
+    communication: 'Communication & Mail',
     settings: 'Settings',
     signOut: 'Sign Out'
   },

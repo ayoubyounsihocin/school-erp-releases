@@ -41,6 +41,7 @@ const ar = {
     courses: 'المواد الدراسية',
     attendance: 'الحضور والغياب',
     finances: 'المالية',
+    communication: 'التواصل والبريد',
     settings: 'الإعدادات',
     signOut: 'تسجيل الخروج'
   },
