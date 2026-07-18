@@ -103,6 +103,32 @@ function createWindow() {
     if (mainWindow) mainWindow.close();
   });
 
+  ipcMain.on('show-alert-dialog', (event, message) => {
+    const isAr = /[\u0600-\u06FF]/.test(message);
+    dialog.showMessageBoxSync(mainWindow || null, {
+      type: 'info',
+      title: isAr ? 'تنبيه النظام' : 'System Alert',
+      message: String(message),
+      buttons: [isAr ? 'موافق' : 'OK'],
+      noLink: true
+    });
+    event.returnValue = null;
+  });
+
+  ipcMain.on('show-confirm-dialog', (event, message) => {
+    const isAr = /[\u0600-\u06FF]/.test(message);
+    const response = dialog.showMessageBoxSync(mainWindow || null, {
+      type: 'question',
+      title: isAr ? 'تأكيد الإجراء' : 'Confirm Action',
+      message: String(message),
+      buttons: isAr ? ['موافق', 'إلغاء'] : ['OK', 'Cancel'],
+      defaultId: 0,
+      cancelId: 1,
+      noLink: true
+    });
+    event.returnValue = response === 0;
+  });
+
   ipcMain.on('resize-to-login', () => {
     if (mainWindow) {
       customUnmaximize();

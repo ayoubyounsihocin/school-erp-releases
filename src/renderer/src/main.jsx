@@ -7,15 +7,10 @@ import App from './App'
 // Global overrides to resolve Electron focus-loss bugs
 const originalConfirm = window.confirm;
 window.confirm = function (message) {
-  const result = originalConfirm(message);
-  setTimeout(() => {
-    if (window.api && window.api.focusApp) {
-      window.api.focusApp();
-    }
-    window.focus();
-    document.body.focus();
-  }, 50);
-  return result;
+  if (window.api && window.api.showConfirmDialog) {
+    return window.api.showConfirmDialog(message);
+  }
+  return originalConfirm(message);
 };
 
 // Premium custom DOM-based alert to completely avoid buggy native Win32 popup focus loss

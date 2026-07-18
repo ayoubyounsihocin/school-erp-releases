@@ -82,7 +82,9 @@ const api = {
   maximizeWindow: () => ipcRenderer.send('window-maximize'),
   closeWindow: () => ipcRenderer.send('window-close'),
   resizeToLogin: () => ipcRenderer.send('resize-to-login'),
-  resizeToMain: () => ipcRenderer.send('resize-to-main')
+  resizeToMain: () => ipcRenderer.send('resize-to-main'),
+  showConfirmDialog: (message) => ipcRenderer.sendSync('show-confirm-dialog', message),
+  showAlertDialog: (message) => ipcRenderer.sendSync('show-alert-dialog', message)
 }
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
