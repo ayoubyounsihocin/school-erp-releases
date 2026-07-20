@@ -1,10 +1,39 @@
 import React, { useState, useEffect } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useLanguage } from '../i18n'
 import { UserCheck, UserPlus, Phone, Mail, Award, AlertCircle, RefreshCw, Search, Plus, Edit, Trash2, X, Upload, Download, Check } from 'lucide-react'
 import { ipcService } from '../services/ipcService'
+import AdvancedTable from '../components/AdvancedTable'
+import SkeletonLoader from '../components/SkeletonLoader'
+import { exportToExcel } from '../utils/excelExport'
+
+const CustomCheckbox = ({ checked, onChange, disabled }) => {
+  return (
+    <div 
+      onClick={() => {
+        if (!disabled && onChange) onChange(!checked);
+      }}
+      className={`h-4 w-4 rounded-full border flex items-center justify-center transition-all shrink-0 ${
+        disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
+      } ${
+        checked 
+          ? 'bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-500/10' 
+          : 'border-slate-750 bg-slate-950/40 hover:border-slate-655'
+      }`}
+    >
+      {checked && (
+        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      )}
+    </div>
+  );
+};
 
 export default function Teachers() {
   const { language, t } = useLanguage()
+  const navigate = useNavigate()
+  const location = useLocation()
   const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}')
   const hasPermission = (permissionKey) => {
     if (currentUser.role === 'Admin') return true;
@@ -16,6 +45,7 @@ export default function Teachers() {
     return false;
   };
   const [teachers, setTeachers] = useState([])
+  const [rowSelection, setRowSelection] = useState({})
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -258,10 +288,174 @@ export default function Teachers() {
     link.click()
     document.body.removeChild(link)
   };
-
   useEffect(() => {
     loadTeachers()
   }, [])
+
+  // Selected Teacher via command palette routing listener
+  useEffect(() => {
+    if (location.state && location.state.selectedTeacherId && teachers.length > 0) {
+      const teacher = teachers.find(t => t.id === location.state.selectedTeacherId);
+      if (teacher) {
+        setSearchTerm(teacher.full_name);
+        // Clear state so it doesn't filter again next time they come back to the tab
+        navigate(location.pathname, { replace: true, state: {} });
+      }
+    }
+  }, [location.state, teachers, navigate, location.pathname]);
+
+  const handleExportExcel = () => {
+    const formatted = filteredTeachers.map(t => ({
+      'Full Name': t.full_name,
+      'Specialty': t.specialty,
+      'Courses Count': t.Courses ? t.Courses.length : 0,
+      'Phone': t.phone,
+      'Email': t.email || 'N/A',
+      'Status': t.status,
+      'Absence Penalty Rate (DA)': t.absence_penalty_rate || 0,
+      'Created At': new Date(t.createdAt).toLocaleDateString()
+    }));
+    exportToExcel(formatted, 'Instructors Directory', 'Instructors_Directory.xlsx');
+  };
+
+  const handleBulkEmail = () => {
+    const selectedIndexes = Object.keys(rowSelection).map(k => parseInt(k, 10));
+    const selectedTeachers = selectedIndexes.map(idx => filteredTeachers[idx]).filter(Boolean);
+    const emails = selectedTeachers.map(t => t.email).filter(Boolean);
+    sessionStorage.setItem('bulk_email_recipients', JSON.stringify(emails));
+    navigate('/communication');
+  };
+
+  const columns = React.useMemo(() => [
+    {
+      accessorKey: 'full_name',
+      header: t('teachers.fullNameCol'),
+      cell: info => {
+        const teacher = info.row.original;
+  if (!hasPermission('teachers:view')) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[500px] text-center p-6 bg-slate-950/20 border border-slate-900/60 rounded-3xl backdrop-blur-sm animate-scale-up">
+        <AlertCircle className="h-12 w-12 text-rose-500 mb-4 animate-bounce" />
+        <h2 className="text-lg font-bold text-white mb-2">
+          {language === 'ar' ? 'تم رفض الوصول' : 'Access Denied'}
+        </h2>
+        <p className="text-xs text-slate-400 max-w-sm">
+          {language === 'ar' 
+            ? 'ليست لديك الصلاحيات الكافية لعرض صفحة المدرسين. يرجى مراجعة مسؤول النظام للحصول على الصلاحية اللازمة.' 
+            : 'You do not have sufficient permissions to view the Teachers directory. Please contact your system administrator.'}
+        </p>
+      </div>
+    )
+  }
+
+  return (
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-xs uppercase shrink-0 animate-fade-in">
+              {teacher.full_name ? teacher.full_name.charAt(0) : 'T'}
+            </div>
+            <span className="font-bold text-slate-100 truncate">{teacher.full_name}</span>
+          </div>
+        );
+      },
+      size: 200
+    },
+    {
+      accessorKey: 'specialty',
+      header: t('teachers.specialtyCol'),
+      cell: info => (
+        <div className="flex items-center gap-1.5 font-medium text-slate-350">
+          <Award className="h-3.5 w-3.5 text-blue-500" />
+          <span>{info.getValue()}</span>
+        </div>
+      ),
+      size: 150
+    },
+    {
+      id: 'courses',
+      header: t('students.coursesCol'),
+      cell: info => {
+        const teacher = info.row.original;
+        return teacher.Courses && teacher.Courses.length > 0 ? (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/10 border border-indigo-500/20 text-indigo-700 dark:text-indigo-400">
+            {teacher.Courses.length} {teacher.Courses.length === 1 ? t('teachers.courseSingle') : t('teachers.courseMultiple')}
+          </span>
+        ) : (
+          <span className="text-[10px] text-slate-650 italic">{t('teachers.noCoursesAssigned')}</span>
+        );
+      },
+      size: 150
+    },
+    {
+      id: 'contacts',
+      header: t('teachers.contactsCol'),
+      cell: info => {
+        const teacher = info.row.original;
+        return (
+          <div className="text-slate-400 space-y-0.5 font-mono text-[10px] text-start">
+            <div className="flex items-center gap-1.5">
+              <Phone className="h-3 w-3 text-slate-550 shrink-0" />
+              <span>{teacher.phone}</span>
+            </div>
+            {teacher.email && (
+              <div className="flex items-center gap-1.5">
+                <Mail className="h-3 w-3 text-slate-555 shrink-0" />
+                <span className="truncate max-w-[150px]">{teacher.email}</span>
+              </div>
+            )}
+          </div>
+        );
+      },
+      size: 180
+    },
+    {
+      accessorKey: 'status',
+      header: t('teachers.statusCol'),
+      cell: info => {
+        const status = info.getValue();
+        return (
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border ${
+            status === 'Active'
+              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400'
+              : 'bg-slate-500/10 border-slate-500/20 text-slate-600 dark:text-slate-400'
+          }`}>
+            <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
+            {status === 'Active' ? t('common.active') : t('common.inactive')}
+          </span>
+        );
+      },
+      size: 110
+    },
+    {
+      id: 'actions',
+      header: t('common.actions'),
+      cell: info => {
+        const teacher = info.row.original;
+        return (
+          <div className="flex items-center justify-end gap-2">
+            {hasPermission('teachers:write') && (
+              <button
+                onClick={() => handleOpenEditModal(teacher)}
+                className="p-1.5 bg-slate-955 border border-slate-800 text-slate-400 hover:text-blue-400 hover:border-blue-500/30 rounded-lg transition-all cursor-pointer"
+                title="Edit Instructor"
+              >
+                <Edit className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {hasPermission('teachers:delete') && (
+              <button
+                onClick={() => handleDeleteTeacher(teacher.id, teacher.full_name)}
+                className="p-1.5 bg-slate-955 border border-slate-800 text-slate-400 hover:text-rose-455 hover:border-rose-500/30 rounded-lg transition-all cursor-pointer"
+                title="Delete Instructor"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        );
+      },
+      size: 120
+    }
+  ], [language, hasPermission, rowSelection]);
 
   // Handle Input Change for Add Form
   const handleInputChange = (e) => {
@@ -455,21 +649,21 @@ export default function Teachers() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setIsImportModalOpen(true)}
-                className="flex items-center gap-2 px-3 py-2.5 bg-slate-900 hover:bg-slate-850 hover:text-white text-slate-350 border border-slate-800 rounded-xl text-xs font-semibold tracking-wide shadow-md transition-all cursor-pointer shrink-0"
+                className="flex items-center gap-2 px-3 py-2.5 bg-slate-900 hover:bg-slate-850 hover:text-white text-slate-350 border border-slate-800 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer shrink-0"
               >
                 <Upload className="h-4 w-4" />
                 {language === 'ar' ? 'استيراد CSV' : 'Import CSV'}
               </button>
               <button
-                onClick={handleExportCSV}
-                className="flex items-center gap-2 px-3 py-2.5 bg-slate-900 hover:bg-slate-850 hover:text-white text-slate-350 border border-slate-800 rounded-xl text-xs font-semibold tracking-wide shadow-md transition-all cursor-pointer shrink-0"
+                onClick={handleExportExcel}
+                className="flex items-center gap-2 px-3 py-2.5 bg-slate-900 hover:bg-slate-850 hover:text-white text-slate-350 border border-slate-800 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer shrink-0"
               >
                 <Download className="h-4 w-4" />
-                {language === 'ar' ? 'تصدير كـ Excel' : 'Export CSV'}
+                {language === 'ar' ? 'تصدير كـ Excel' : 'Export Excel'}
               </button>
               <button
                 onClick={() => setIsAddModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-semibold tracking-wide shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 transition-all cursor-pointer shrink-0"
+                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-semibold tracking-wide hover:transition-all cursor-pointer shrink-0"
               >
                 <UserPlus className="h-4 w-4" />
                 {t('teachers.addTeacher')}
@@ -525,138 +719,84 @@ export default function Teachers() {
             <option value="Inactive">{t('common.inactive')}</option>
           </select>
         </div>
-        <div className="text-[10px] text-slate-550 font-semibold uppercase tracking-wider shrink-0 lg:mr-2">
-          {t('teachers.recordsCount', { filtered: filteredTeachers.length, total: teachers.length })}
+        <div className="text-[10px] text-slate-550 font-semibold uppercase tracking-wider shrink-0 lg:mr-2 flex items-center gap-3">
+          <span>{t('teachers.recordsCount', { filtered: filteredTeachers.length, total: teachers.length })}</span>
+          
+          {Object.keys(rowSelection).length > 0 && (
+            <div className="flex items-center gap-2.5 border-l border-slate-800/80 pl-3 animate-fade-in">
+              <span className="text-[9.5px] text-blue-400 font-bold normal-case">
+                {Object.keys(rowSelection).length} {language === 'ar' ? 'محدد' : 'selected'}
+              </span>
+              <button
+                onClick={handleBulkEmail}
+                className="p-1 bg-blue-600/15 hover:bg-blue-600/25 text-blue-400 hover:text-blue-300 rounded-lg transition-all cursor-pointer"
+                title={language === 'ar' ? 'إرسال بريد جماعي' : 'Send Bulk Email'}
+              >
+                <Mail className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => setRowSelection({})}
+                className="p-1 bg-slate-950 border border-slate-850 hover:bg-slate-850 text-slate-400 hover:text-slate-200 rounded-lg transition-all cursor-pointer"
+                title={language === 'ar' ? 'إلغاء التحديد' : 'Clear Selection'}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 border-l border-slate-800/80 pl-3">
+            <CustomCheckbox
+              checked={filteredTeachers.length > 0 && filteredTeachers.every((_, idx) => !!rowSelection[idx.toString()])}
+              onChange={(val) => {
+                if (!val) {
+                  setRowSelection({});
+                } else {
+                  const nextSel = {};
+                  filteredTeachers.forEach((_, idx) => {
+                    nextSel[idx.toString()] = true;
+                  });
+                  setRowSelection(nextSel);
+                }
+              }}
+            />
+            <span className="text-[9px] text-slate-400 select-none normal-case">
+              {language === 'ar' ? 'تحديد الكل' : 'Select All'}
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Main Workspace */}
       <div className="w-full">
-        
         {/* Directory Table */}
-        <div className="w-full bg-slate-900/60 border border-slate-800/60 rounded-2xl overflow-hidden shadow-xl">
-          <div className="px-6 py-4 border-b border-slate-800/60 bg-slate-955/40">
+        <div className="w-full bg-slate-900/60 border border-slate-800/60 rounded-2xl overflow-hidden">
+          <div className="px-2 py-3 border-b border-slate-800/40 bg-slate-955/20 mb-4 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-200">{t('teachers.registryTitle')}</h3>
           </div>
           
           {loading ? (
-            /* Table Skeletons */
-            <div className="overflow-x-auto">
-              <table className={`${language === 'ar' ? 'text-right' : 'text-left'} w-full border-collapse`}>
-                <thead>
-                  <tr className="border-b border-slate-800/60 bg-slate-955/40 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                    <th className="px-6 py-4">{t('teachers.fullNameCol')}</th>
-                    <th className="px-6 py-4">{t('teachers.specialtyCol')}</th>
-                    <th className="px-6 py-4">{t('teachers.contactsCol')}</th>
-                    <th className="px-6 py-4">{t('teachers.statusCol')}</th>
-                    <th className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4`}>{t('common.actions')}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/30">
-                  {[1, 2, 3].map(i => (
-                    <tr key={i} className="animate-pulse">
-                      <td className="px-6 py-4"><div className="h-3.5 w-32 bg-slate-800 rounded"></div></td>
-                      <td className="px-6 py-4"><div className="h-3.5 w-24 bg-slate-800 rounded"></div></td>
-                      <td className="px-6 py-4"><div className="h-3 w-40 bg-slate-800 rounded"></div></td>
-                      <td className="px-6 py-4"><div className="h-5 w-16 bg-slate-800 rounded-full"></div></td>
-                      <td className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4`}><div className="h-6 w-12 bg-slate-800 rounded ml-auto"></div></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <SkeletonLoader type="table" rows={4} cols={5} />
           ) : teachers.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-500 gap-3">
-              <UserCheck className="h-8 w-8 text-slate-600" />
-            <p className="text-xs">{t('teachers.noTeachersRegistered')}</p>
+              <UserCheck className="h-8 w-8 text-slate-600 animate-pulse" />
+              <p className="text-xs">{t('teachers.noTeachersRegistered')}</p>
             </div>
           ) : filteredTeachers.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-slate-500 text-center">
               <p className="text-xs">{language === 'ar' ? `لم يتم العثور على أساتذة يطابقون "${searchTerm}"` : `No matching teachers found for "${searchTerm}"`}</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className={`${language === 'ar' ? 'text-right' : 'text-left'} w-full border-collapse`}>
-                <thead>
-                  <tr className="border-b border-slate-800/60 bg-slate-955/40 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                    <th className="px-6 py-4">{t('teachers.fullNameCol')}</th>
-                    <th className="px-6 py-4">{t('teachers.specialtyCol')}</th>
-                    <th className="px-6 py-4">{t('students.coursesCol')}</th>
-                    <th className="px-6 py-4">{t('teachers.contactsCol')}</th>
-                    <th className="px-6 py-4">{t('teachers.statusCol')}</th>
-                    <th className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4`}>{t('common.actions')}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/30 text-xs text-slate-300">
-                  {filteredTeachers.map(teacher => (
-                    <tr key={teacher.id} className="hover:bg-slate-900/40 transition-colors">
-                      <td className="px-6 py-4 font-semibold text-slate-200">{teacher.full_name}</td>
-                      <td className="px-6 py-4 font-medium text-slate-300">
-                        <div className="flex items-center gap-1.5">
-                          <Award className="h-4 w-4 text-blue-500" />
-                          {teacher.specialty}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        {teacher.Courses && teacher.Courses.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
-                              {teacher.Courses.length} {teacher.Courses.length === 1 ? t('teachers.courseSingle') : t('teachers.courseMultiple')}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-[10px] text-slate-600 italic">{t('teachers.noCoursesAssigned')}</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-slate-400 space-y-1">
-                        <div className="flex items-center gap-1.5">
-                          <Phone className="h-3.5 w-3.5 text-slate-600" />
-                          <span>{teacher.phone}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <Mail className="h-3.5 w-3.5 text-slate-600" />
-                          <span className="text-[10px] truncate max-w-xs">{teacher.email}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border ${
-                          teacher.status === 'Active'
-                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                            : 'bg-slate-500/10 border-slate-500/20 text-slate-400'
-                        }`}>
-                          <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
-                          {teacher.status === 'Active' ? t('common.active') : t('common.inactive')}
-                        </span>
-                      </td>
-                      <td className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4`}>
-                        <div className="flex items-center justify-end gap-2">
-                          {hasPermission('teachers:write') && (
-                            <button
-                              onClick={() => handleOpenEditModal(teacher)}
-                              className="p-1.5 bg-slate-955 border border-slate-800 text-slate-400 hover:text-blue-400 hover:border-blue-500/30 rounded-lg transition-all cursor-pointer"
-                              title="Edit Instructor"
-                            >
-                              <Edit className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                          {hasPermission('teachers:delete') && (
-                            <button
-                              onClick={() => handleDeleteTeacher(teacher.id, teacher.full_name)}
-                              className="p-1.5 bg-slate-955 border border-slate-800 text-slate-400 hover:text-rose-400 hover:border-rose-500/30 rounded-lg transition-all cursor-pointer"
-                              title="Delete Instructor"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <AdvancedTable 
+              data={filteredTeachers}
+              columns={columns}
+              rowSelection={rowSelection}
+              onRowSelectionChange={setRowSelection}
+              enablePagination={true}
+              defaultPageSize={10}
+              onRowClick={(row) => row.toggleSelected()}
+            />
           )}
-      </div>
+        </div>
       
       </div>
     </div>

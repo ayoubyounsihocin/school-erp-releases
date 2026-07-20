@@ -274,13 +274,27 @@ export async function checkLicenseStatus() {
         throw new Error(`Server returned status code ${response.status}`);
       }
     } catch (e) {
-      console.log("Online license key check failed (offline or server error).", e.message);
-      return {
-        valid: false,
-        reason: 'OFFLINE',
-        error: 'Internet connection required: Please connect to the internet to verify your license key.',
-        payload
-      };
+      console.log("Online license key check failed (offline or server error). Proceeding with strict offline verification.", e.message);
+      // Strict Offline Hardware ID Binding Check
+      if (!payload.machineId) {
+        return {
+          valid: false,
+          reason: 'OFFLINE',
+          error: 'Internet connection is required to verify standard license keys. For offline usage, you must use a hardware-locked license key.',
+          payload
+        };
+      }
+      const localMachineId = getMachineHardwareId();
+      if (payload.machineId !== localMachineId) {
+        return {
+          valid: false,
+          reason: 'INVALID',
+          error: 'This offline license key is registered to a different computer (Hardware ID mismatch).',
+          payload
+        };
+      }
+      // If we reach here, the offline check is successful and mathematically secure.
+      console.log("Strict offline hardware-locked license verified successfully.");
     }
 
     // Update last run date (only forward)
@@ -362,8 +376,15 @@ export async function activateLicense(keyStr) {
         throw new Error(`Server returned status code ${response.status}`);
       }
     } catch (e) {
-      console.log("Online activation check failed (offline).", e.message);
-      return { success: false, error: 'Internet connection required: Please connect to the internet to activate your license key.' };
+      console.log("Online activation check failed (offline). Proceeding with strict offline hardware binding check.", e.message);
+      if (!payload.machineId) {
+        return { success: false, error: 'Internet connection is required to activate a standard license. For offline activation, you must use a hardware-locked license key.' };
+      }
+      const localMachineId = getMachineHardwareId();
+      if (payload.machineId !== localMachineId) {
+        return { success: false, error: 'This offline license key is registered to a different computer (Hardware ID mismatch).' };
+      }
+      console.log("Strict offline hardware-locked license activated successfully.");
     }
 
     // Check if there is an existing active license for a DIFFERENT holder

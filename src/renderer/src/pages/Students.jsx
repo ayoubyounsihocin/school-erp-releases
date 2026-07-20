@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react'
-import { Users, UserPlus, Phone, AlertCircle, RefreshCw, Search, X, Check, ArrowRight, BookOpen, Plus, Edit, Trash2, Printer, FileText, CreditCard, Award, Upload, Download } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { Users, UserPlus, Phone, AlertCircle, RefreshCw, Search, X, Check, ArrowRight, BookOpen, Plus, Edit, Trash2, Printer, FileText, CreditCard, Award, Upload, Download, Mail } from 'lucide-react'
 import { useLanguage } from '../i18n'
 import { ipcService } from '../services/ipcService'
 import CustomDatePicker from '../components/CustomDatePicker'
@@ -11,6 +13,32 @@ import {
 } from '../utils/billing'
 import { STUDENT_PRINT_STYLES, CERTIFICATE_PRINT_STYLES } from '../utils/printStyles'
 import QRCode from 'qrcode'
+import AdvancedTable from '../components/AdvancedTable'
+import SkeletonLoader from '../components/SkeletonLoader'
+import { exportToExcel } from '../utils/excelExport'
+
+const CustomCheckbox = ({ checked, onChange, disabled }) => {
+  return (
+    <div 
+      onClick={() => {
+        if (!disabled && onChange) onChange(!checked);
+      }}
+      className={`h-4 w-4 rounded-full border flex items-center justify-center transition-all shrink-0 ${
+        disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
+      } ${
+        checked 
+          ? 'bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-500/10' 
+          : 'border-slate-750 bg-slate-950/40 hover:border-slate-655'
+      }`}
+    >
+      {checked && (
+        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      )}
+    </div>
+  );
+};
 
 export default function Students() {
   const { language, t, dir, isRTL } = useLanguage()
@@ -28,6 +56,11 @@ export default function Students() {
   const [students, setStudents] = useState([])
   const [allAbsences, setAllAbsences] = useState([])
   const [loading, setLoading] = useState(true)
+  const [rowSelection, setRowSelection] = useState({})
+  
+  const navigate = useNavigate()
+  const location = useLocation()
+
   const [activePrintStudent, setActivePrintStudent] = useState(null)
   const [activePrintCertificateStudent, setActivePrintCertificateStudent] = useState(null)
   const [schoolName, setSchoolName] = useState('School Name')
@@ -1009,6 +1042,323 @@ export default function Students() {
     loadInitialData()
   }, [])
 
+  // Selected Student via command palette routing listener
+  useEffect(() => {
+    if (location.state && location.state.selectedStudentId && students.length > 0) {
+      const student = students.find(s => s.id === location.state.selectedStudentId);
+      if (student) {
+        setSearchTerm(student.full_name);
+        // Clear state so it doesn't filter again next time they come back to the tab
+        navigate(location.pathname, { replace: true, state: {} });
+      }
+    }
+  }, [location.state, students, navigate, location.pathname]);
+
+  // Local client search filtering
+  const filteredStudents = students.filter(student => {
+    // Search Term Match
+    const matchesSearch = student.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (student.phone && student.phone.includes(searchTerm)) ||
+      (student.parent_phone && student.parent_phone.includes(searchTerm));
+
+    // Status Match
+    const matchesStatus = statusFilter === 'All' || 
+      (statusFilter === 'Loyal' ? isLoyalStudent(student) :
+       statusFilter === 'NoCourse15Days' ? isNoCourse15Days(student) :
+       student.status === statusFilter);
+
+    // Course Match
+    const matchesCourse = courseFilter === 'All' || 
+      (student.Courses || []).some(c => c.id.toString() === courseFilter);
+
+    // Balance Match
+    let matchesBalance = true;
+    if (balanceFilter !== 'All') {
+      const { balance } = calculateFinancials(student);
+      if (balanceFilter === 'Unpaid') {
+        matchesBalance = balance > 0;
+      } else if (balanceFilter === 'Settled') {
+        matchesBalance = balance <= 0;
+      }
+    }
+
+    return matchesSearch && matchesStatus && matchesCourse && matchesBalance;
+  })
+
+  // Status style mapping helper
+  const getStatusBadgeStyle = (status) => {
+    switch (status) {
+      case 'Active':
+        return 'bg-emerald-500/10 border-emerald-500/25 text-emerald-700 dark:text-emerald-400'
+      case 'Dropped':
+        return 'bg-rose-500/10 border-rose-500/25 text-rose-700 dark:text-rose-400'
+      case 'Graduated':
+        return 'bg-blue-500/10 border-blue-500/25 text-blue-700 dark:text-blue-400'
+      default:
+        return 'bg-slate-500/10 border-slate-500/25 text-slate-700 dark:text-slate-400'
+    }
+  }
+
+  const handleExportStudentsExcel = () => {
+    const formatted = filteredStudents.map(s => {
+      const financials = calculateFinancials(s);
+      return {
+        'Full Name': s.full_name,
+        'Grade Level': s.grade_level,
+        'Phone Number': s.phone,
+        'Email Address': s.email || 'N/A',
+        'Parent Phone': s.parent_phone || 'N/A',
+        'Parent Email': s.parent_email || 'N/A',
+        'Status': s.status,
+        'Outstanding Balance (DA)': financials.balance,
+        'Registration Date': new Date(s.createdAt).toLocaleDateString()
+      };
+    });
+    exportToExcel(formatted, 'Students Directory', 'Students_Directory.xlsx');
+  };
+
+  const handleBulkEmail = () => {
+    const selectedIndexes = Object.keys(rowSelection).map(k => parseInt(k, 10));
+    const selectedStudents = selectedIndexes.map(idx => filteredStudents[idx]).filter(Boolean);
+    const emails = selectedStudents.map(s => s.parent_email || s.email).filter(Boolean);
+    sessionStorage.setItem('bulk_email_recipients', JSON.stringify(emails));
+    navigate('/communication');
+  };
+
+  const columns = React.useMemo(() => [
+    {
+      accessorKey: 'full_name',
+      header: t('students.fullNameCol'),
+      cell: info => {
+        const student = info.row.original;
+        return (
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-xs uppercase shrink-0 animate-fade-in">
+              {student.full_name ? student.full_name.charAt(0) : 'S'}
+            </div>
+            <div className="space-y-0.5 min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-bold text-slate-100 truncate max-w-[180px]">{student.full_name}</span>
+                {isLoyalStudent(student) && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-[8px] font-bold text-amber-400 cursor-help" title={t('customFeatures.loyalBadge')}>
+                    ❤️ {t('customFeatures.loyalBadge')}
+                  </span>
+                )}
+                {isNoCourse15Days(student) && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-rose-500/10 border border-rose-500/20 text-[8px] font-bold text-rose-400 cursor-help" title={t('customFeatures.noCourse15Days')}>
+                    ⚠️ {t('customFeatures.noCourse15Days')}
+                  </span>
+                )}
+                {isBirthdayToday(student.date_of_birth) && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-pink-500/15 border border-pink-500/20 text-[8px] font-bold text-pink-400 cursor-help" title={language === 'ar' ? 'عيد ميلاد اليوم! 🎂' : 'Today is their Birthday! 🎂'}>
+                    🎂 {language === 'ar' ? 'عيد ميلاد اليوم' : 'Birthday Today'}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                <span className="px-1.5 py-0.2 bg-slate-950 border border-slate-850 text-[9px] text-slate-400 rounded-md font-semibold tracking-wider">
+                  {student.grade_level || 'Primary'}
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      },
+      size: 220
+    },
+    {
+      accessorKey: 'phone',
+      header: t('students.phoneCol'),
+      cell: info => {
+        const student = info.row.original;
+        return (
+          <div className="flex flex-col gap-0.5 text-[10px] font-medium font-mono text-slate-350 text-start">
+            <div className="flex items-center gap-1">
+              <span>{student.phone || 'N/A'}</span>
+            </div>
+            {student.email && (
+              <div className="text-[9px] text-slate-500 max-w-[145px] truncate" title={student.email}>
+                {student.email}
+              </div>
+            )}
+          </div>
+        );
+      },
+      size: 140
+    },
+    {
+      id: 'courses',
+      header: t('students.coursesCol'),
+      cell: info => {
+        const student = info.row.original;
+        return (
+          <div className="flex flex-col gap-1.5 max-w-xs text-start">
+            {student.Courses && student.Courses.length > 0 ? (
+              (() => {
+                const c = student.Courses[0];
+                const stats = getStudentCourseAttendanceStats(student, c.id);
+                return (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-950 border border-slate-850 text-[9px] text-slate-300 font-semibold">
+                        {c.title}
+                      </span>
+                      <span className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border ${
+                        stats.remaining <= 1
+                          ? 'bg-rose-500/10 border-rose-500/25 text-rose-700 dark:text-rose-400 shadow-sm animate-pulse'
+                          : stats.remaining <= 3
+                          ? 'bg-amber-500/10 border-amber-500/25 text-amber-700 dark:text-amber-400'
+                          : 'bg-slate-100 dark:bg-slate-950 border-slate-200 dark:border-slate-850 text-slate-700 dark:text-slate-400'
+                      }`}>
+                        {stats.attended}/{stats.paid}
+                      </span>
+                    </div>
+                    {student.Courses.length > 1 && (
+                      <button
+                        onClick={() => handleManageEnrollments(student)}
+                        className="text-[9px] text-purple-400 hover:text-purple-300 font-semibold block cursor-pointer"
+                      >
+                        +{student.Courses.length - 1} {language === 'ar' ? 'أخرى' : 'more'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()
+            ) : (
+              <span className="text-[10px] text-slate-650 italic">-</span>
+            )}
+          </div>
+        );
+      },
+      size: 150
+    },
+    {
+      id: 'balance',
+      header: t('students.balanceCol'),
+      cell: info => {
+        const student = info.row.original;
+        return (
+          <div className="text-start">
+            {student.Courses && student.Courses.length > 0 ? (
+              (() => {
+                const c = student.Courses[0];
+                const balanceInfo = getCoursePaymentsBalance(student, c.id);
+                return (
+                  <span className={`inline-flex px-1.5 py-0.5 rounded text-[9.5px] font-bold font-mono border ${
+                    balanceInfo.balance <= 0 
+                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                      : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                  }`}>
+                    {balanceInfo.balance > 0 ? `${balanceInfo.balance.toFixed(2)} DA` : t('students.balanceSettled')}
+                  </span>
+                );
+              })()
+            ) : (
+              <span className="text-[10px] text-slate-650 italic">-</span>
+            )}
+          </div>
+        );
+      },
+      size: 130
+    },
+    {
+      accessorKey: 'status',
+      header: t('students.statusCol'),
+      cell: info => {
+        const status = info.getValue();
+        return (
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold border ${getStatusBadgeStyle(status)}`}>
+            <span className="h-1 w-1 rounded-full bg-current"></span>
+            {status === 'Active' ? t('common.active') : status === 'Dropped' ? (language === 'ar' ? 'منقطع' : 'Dropped') : (language === 'ar' ? 'متخرج' : 'Graduated')}
+          </span>
+        );
+      },
+      size: 110
+    },
+    {
+      id: 'actions',
+      header: t('students.actionsCol'),
+      cell: info => {
+        const student = info.row.original;
+        return (
+          <div className="flex items-center justify-end gap-1.5 flex-wrap sm:flex-nowrap">
+            {/* BookOpen: Enroll */}
+            <button
+              onClick={() => handleManageEnrollments(student)}
+              className="p-1.5 bg-slate-955 border border-slate-800 text-slate-400 hover:text-purple-400 hover:border-purple-500/30 rounded-lg transition-all cursor-pointer"
+              title={t('students.enrollmentBtn')}
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+            </button>
+            
+            {/* Award: Grades */}
+            <button
+              type="button"
+              onClick={() => handleOpenGradesModal(student)}
+              className="p-1.5 bg-slate-955 border border-slate-800 text-slate-400 hover:text-emerald-400 hover:border-emerald-500/30 rounded-lg transition-all cursor-pointer"
+              title={t('customFeatures.gradesBtn')}
+            >
+              <Award className="h-3.5 w-3.5" />
+            </button>
+
+            {/* CreditCard: Student Card */}
+            <button
+              type="button"
+              onClick={() => handleOpenStudentCardModal(student)}
+              className="p-1.5 bg-slate-955 border border-slate-800 text-slate-400 hover:text-amber-400 hover:border-amber-500/30 rounded-lg transition-all cursor-pointer"
+              title={t('customFeatures.studentCardBtn')}
+            >
+              <CreditCard className="h-3.5 w-3.5" />
+            </button>
+
+            {/* Printer: Invoice Summary */}
+            <button
+              type="button"
+              onClick={() => setActivePrintStudent(student)}
+              className="p-1.5 bg-slate-955 border border-slate-800 text-slate-400 hover:text-blue-500 hover:border-blue-500/30 rounded-lg transition-all cursor-pointer"
+              title={t('students.printSummaryTooltip')}
+            >
+              <Printer className="h-3.5 w-3.5" />
+            </button>
+
+            {/* FileText: Registration Certificate */}
+            <button
+              type="button"
+              onClick={() => setActivePrintCertificateStudent(student)}
+              className="p-1.5 bg-slate-955 border border-slate-800 text-slate-400 hover:text-indigo-400 hover:border-indigo-500/30 rounded-lg transition-all cursor-pointer"
+              title={language === 'ar' ? 'طباعة شهادة تسجيل' : 'Print Enrollment Certificate'}
+            >
+              <FileText className="h-3.5 w-3.5" />
+            </button>
+
+            {/* Edit */}
+            {hasPermission('students:write') && (
+              <button
+                onClick={() => handleOpenEditModal(student)}
+                className="p-1.5 bg-slate-955 border border-slate-800 text-slate-400 hover:text-cyan-400 hover:border-cyan-500/30 rounded-lg transition-all cursor-pointer"
+                title={t('students.editStudentTooltip')}
+              >
+                <Edit className="h-3.5 w-3.5" />
+              </button>
+            )}
+
+            {/* Delete */}
+            {hasPermission('students:delete') && (
+              <button
+                onClick={() => handleDeleteStudent(student.id, student.full_name)}
+                className="p-1.5 bg-slate-955 border border-slate-800 text-slate-400 hover:text-rose-500 hover:border-rose-500/30 rounded-lg transition-all cursor-pointer"
+                title={t('students.deleteStudentTooltip')}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        );
+      },
+      size: 240
+    }
+  ], [language, rowSelection]);
+
   // Input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -1030,9 +1380,6 @@ export default function Students() {
     const errors = {}
     if (!formData.full_name.trim()) {
       errors.full_name = t('students.validationNameRequired')
-    }
-    if (!formData.parent_phone.trim()) {
-      errors.parent_phone = t('students.validationParentRequired') || 'Parent Phone is required'
     }
     setFormErrors(errors)
     return Object.keys(errors).length === 0
@@ -1216,49 +1563,22 @@ export default function Students() {
     }
   }
 
-  // Local client search filtering
-  const filteredStudents = students.filter(student => {
-    // Search Term Match
-    const matchesSearch = student.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (student.phone && student.phone.includes(searchTerm)) ||
-      (student.parent_phone && student.parent_phone.includes(searchTerm));
 
-    // Status Match
-    const matchesStatus = statusFilter === 'All' || 
-      (statusFilter === 'Loyal' ? isLoyalStudent(student) :
-       statusFilter === 'NoCourse15Days' ? isNoCourse15Days(student) :
-       student.status === statusFilter);
 
-    // Course Match
-    const matchesCourse = courseFilter === 'All' || 
-      (student.Courses || []).some(c => c.id.toString() === courseFilter);
-
-    // Balance Match
-    let matchesBalance = true;
-    if (balanceFilter !== 'All') {
-      const { balance } = calculateFinancials(student);
-      if (balanceFilter === 'Unpaid') {
-        matchesBalance = balance > 0;
-      } else if (balanceFilter === 'Settled') {
-        matchesBalance = balance <= 0;
-      }
-    }
-
-    return matchesSearch && matchesStatus && matchesCourse && matchesBalance;
-  })
-
-  // Status style mapping helper
-  const getStatusBadgeStyle = (status) => {
-    switch (status) {
-      case 'Active':
-        return 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400'
-      case 'Dropped':
-        return 'bg-rose-500/10 border-rose-500/25 text-rose-400'
-      case 'Graduated':
-        return 'bg-blue-500/10 border-blue-500/25 text-blue-400'
-      default:
-        return 'bg-slate-500/10 border-slate-500/25 text-slate-400'
-    }
+  if (!hasPermission('students:view')) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[500px] text-center p-6 bg-slate-950/20 border border-slate-900/60 rounded-3xl backdrop-blur-sm animate-scale-up">
+        <AlertCircle className="h-12 w-12 text-rose-500 mb-4 animate-bounce" />
+        <h2 className="text-lg font-bold text-white mb-2">
+          {language === 'ar' ? 'تم رفض الوصول' : 'Access Denied'}
+        </h2>
+        <p className="text-xs text-slate-400 max-w-sm">
+          {language === 'ar' 
+            ? 'ليست لديك الصلاحيات الكافية لعرض صفحة الطلاب. يرجى مراجعة مسؤول النظام للحصول على الصلاحية اللازمة.' 
+            : 'You do not have sufficient permissions to view the Students registry. Please contact your system administrator.'}
+        </p>
+      </div>
+    )
   }
 
   return (
@@ -1283,22 +1603,22 @@ export default function Students() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setIsImportModalOpen(true)}
-                className="flex items-center gap-2 px-3 py-2.5 bg-slate-900 hover:bg-slate-850 hover:text-white text-slate-350 border border-slate-800 rounded-xl text-xs font-semibold tracking-wide shadow-md transition-all cursor-pointer shrink-0"
+                className="flex items-center gap-2 px-3 py-2.5 bg-slate-900 hover:bg-slate-850 hover:text-white text-slate-350 border border-slate-800 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer shrink-0"
               >
                 <Upload className="h-4 w-4" />
                 {t('students.importCSV')}
               </button>
               <button
-                onClick={handleExportCSV}
-                className="flex items-center gap-2 px-3 py-2.5 bg-slate-900 hover:bg-slate-850 hover:text-white text-slate-350 border border-slate-800 rounded-xl text-xs font-semibold tracking-wide shadow-md transition-all cursor-pointer shrink-0"
+                onClick={handleExportStudentsExcel}
+                className="flex items-center gap-2 px-3 py-2.5 bg-slate-900 hover:bg-slate-850 hover:text-white text-slate-350 border border-slate-800 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer shrink-0"
               >
                 <Download className="h-4 w-4" />
-                {language === 'ar' ? 'تصدير كـ Excel' : 'Export CSV'}
+                {language === 'ar' ? 'تصدير كـ Excel' : 'Export Excel'}
               </button>
               <button
                 id="add-student-btn"
                 onClick={handleOpenAddModal}
-                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-semibold tracking-wide shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 transition-all cursor-pointer shrink-0"
+                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-semibold tracking-wide hover:transition-all cursor-pointer shrink-0"
               >
                 <UserPlus className="h-4 w-4" />
                 {t('students.addStudent')}
@@ -1368,57 +1688,62 @@ export default function Students() {
             <option value="NoCourse15Days">{t('customFeatures.noCourse15Days')}</option>
           </select>
         </div>
-        <div className="text-[10px] text-slate-550 font-semibold uppercase tracking-wider shrink-0 lg:mr-2">
-          {t('students.recordsCount', { filtered: filteredStudents.length, total: students.length })}
+
+        <div className="text-[10px] text-slate-550 font-semibold uppercase tracking-wider shrink-0 lg:mr-2 flex items-center gap-3">
+          <span>{t('students.recordsCount', { filtered: filteredStudents.length, total: students.length })}</span>
+          
+          {Object.keys(rowSelection).length > 0 && (
+            <div className="flex items-center gap-2.5 border-l border-slate-800/80 pl-3 animate-fade-in">
+              <span className="text-[9.5px] text-blue-400 font-bold normal-case">
+                {Object.keys(rowSelection).length} {language === 'ar' ? 'محدد' : 'selected'}
+              </span>
+              <button
+                onClick={handleBulkEmail}
+                className="p-1 bg-blue-600/15 hover:bg-blue-600/25 text-blue-400 hover:text-blue-300 rounded-lg transition-all cursor-pointer"
+                title={language === 'ar' ? 'إرسال بريد جماعي' : 'Send Bulk Email'}
+              >
+                <Mail className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => setRowSelection({})}
+                className="p-1 bg-slate-950 border border-slate-850 hover:bg-slate-850 text-slate-400 hover:text-slate-200 rounded-lg transition-all cursor-pointer"
+                title={language === 'ar' ? 'إلغاء التحديد' : 'Clear Selection'}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 border-l border-slate-800/80 pl-3">
+            <CustomCheckbox
+              checked={filteredStudents.length > 0 && filteredStudents.every((_, idx) => !!rowSelection[idx.toString()])}
+              onChange={(val) => {
+                if (!val) {
+                  setRowSelection({});
+                } else {
+                  const nextSel = {};
+                  filteredStudents.forEach((_, idx) => {
+                    nextSel[idx.toString()] = true;
+                  });
+                  setRowSelection(nextSel);
+                }
+              }}
+            />
+            <span className="text-[9px] text-slate-400 select-none normal-case">
+              {language === 'ar' ? 'تحديد الكل' : 'Select All'}
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Table Canvas */}
-      <div className="bg-slate-900/60 border border-slate-800/60 rounded-2xl overflow-hidden shadow-xl">
+      <div className="bg-slate-900/60 border border-slate-800/60 rounded-2xl overflow-hidden">
         {loading ? (
-          /* Table Skeleton Loader */
-          <div className="overflow-x-auto">
-            <table className={`${language === 'ar' ? 'text-right' : 'text-left'} w-full border-collapse`}>
-              <thead>
-                <tr className="border-b border-slate-800/60 bg-slate-950/40 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                  <th className="px-6 py-4">{t('students.fullNameCol')}</th>
-                  <th className="px-6 py-4">{t('students.phoneCol')}</th>
-                  <th className="px-6 py-4">{t('students.coursesCol')}</th>
-                  <th className="px-6 py-4">{t('students.balanceCol')}</th>
-                  <th className="px-6 py-4">{t('students.statusCol')}</th>
-                  <th className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4`}>{t('students.actionsCol')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/30">
-                {[1, 2, 3, 4].map((idx) => (
-                  <tr key={idx} className="animate-pulse">
-                    <td className="px-6 py-4">
-                      <div className="h-3.5 w-32 bg-slate-800 rounded"></div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="h-3 w-24 bg-slate-800 rounded"></div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="h-3 w-24 bg-slate-800 rounded"></div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="h-3 w-20 bg-slate-800 rounded"></div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="h-5 w-16 bg-slate-800 rounded-full"></div>
-                    </td>
-                    <td className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4`}>
-                      <div className="h-5 w-20 bg-slate-800 rounded-lg ml-auto"></div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <SkeletonLoader type="table" rows={6} cols={6} />
         ) : students.length === 0 ? (
           /* Empty State */
           <div className="flex flex-col items-center justify-center py-20 text-center px-6">
-            <div className="p-3 bg-slate-800/40 rounded-full border border-slate-700/40 text-slate-500 mb-4">
+            <div className="p-3 bg-slate-800/40 rounded-full border border-slate-700/40 text-slate-500 mb-4 animate-pulse">
               <Users className="h-8 w-8" />
             </div>
             <h3 className="text-sm font-semibold text-slate-200">{t('students.noStudentsRegistered')}</h3>
@@ -1428,7 +1753,7 @@ export default function Students() {
           </div>
         ) : filteredStudents.length === 0 ? (
           /* No Search Results */
-          <div className="flex flex-col items-center justify-center py-16 text-center px-6">
+          <div className="flex flex-col items-center justify-center py-16 text-center px-6 animate-fade-in">
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('students.noMatchingRecords')}</h3>
             <p className="text-xs text-slate-500 mt-1">
               {t('students.noMatchingDesc')}
@@ -1441,249 +1766,18 @@ export default function Students() {
             </button>
           </div>
         ) : (
-          /* Real Data Table */
-          <div className="overflow-x-auto">
-            <table className={`${language === 'ar' ? 'text-right' : 'text-left'} w-full border-collapse`}>
-              <thead>
-                <tr className="border-b border-slate-800/60 bg-slate-955/40 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                  <th className="px-6 py-4">{t('students.fullNameCol')}</th>
-                  <th className="px-6 py-4">{t('students.phoneCol')}</th>
-                  <th className="px-6 py-4">{t('students.coursesCol')}</th>
-                  <th className="px-6 py-4">{t('students.balanceCol')}</th>
-                  <th className="px-6 py-4">{t('students.statusCol')}</th>
-                  <th className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4`}>{t('students.actionsCol')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/30 text-xs text-slate-300">
-                {filteredStudents.map((student) => {
-                  const { totalTuition, totalPaid, balance } = calculateFinancials(student);
-                  return (
-                    <tr key={student.id} className="hover:bg-slate-900/35 transition-colors border-b border-slate-850/30 last:border-b-0">
-                      {/* Name & Primary Info */}
-                      <td className="px-6 py-4 font-semibold text-slate-200">
-                        <div className="flex items-center gap-3">
-                          {/* Circular Letter Avatar */}
-                          <div className="h-9 w-9 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-xs uppercase shrink-0">
-                            {student.full_name ? student.full_name.charAt(0) : 'S'}
-                          </div>
-                          <div className="space-y-0.5 min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-bold text-slate-150 truncate max-w-[180px]">{student.full_name}</span>
-                              {isLoyalStudent(student) && (
-                                <span 
-                                  className="inline-flex items-center px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-[8px] font-bold text-amber-400 cursor-help"
-                                  title={t('customFeatures.loyalBadge')}
-                                >
-                                  ❤️ {t('customFeatures.loyalBadge')}
-                                </span>
-                              )}
-                              {isNoCourse15Days(student) && (
-                                <span 
-                                  className="inline-flex items-center px-1.5 py-0.5 rounded bg-rose-500/10 border border-rose-500/20 text-[8px] font-bold text-rose-400 cursor-help"
-                                  title={t('customFeatures.noCourse15Days')}
-                                >
-                                  ⚠️ {t('customFeatures.noCourse15Days')}
-                                </span>
-                              )}
-                              {isBirthdayToday(student.date_of_birth) && (
-                                <span 
-                                  className="inline-flex items-center px-1.5 py-0.5 rounded bg-pink-500/15 border border-pink-500/20 text-[8px] font-bold text-pink-400 cursor-help"
-                                  title={language === 'ar' ? 'عيد ميلاد اليوم! 🎂' : 'Today is their Birthday! 🎂'}
-                                >
-                                  🎂 {language === 'ar' ? 'عيد ميلاد اليوم' : 'Birthday Today'}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 text-[10px] text-slate-500 flex-wrap">
-                              <span className="px-1.5 py-0.2 bg-slate-955 border border-slate-850 text-[9px] text-slate-400 rounded-md font-semibold tracking-wider">
-                                {student.grade_level || 'Primary'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Phone Column */}
-                      <td className="px-6 py-4 text-slate-400">
-                        <div className="flex flex-col gap-0.5 text-[10px] font-medium font-mono text-slate-350 text-start">
-                          <div className="flex items-center gap-1">
-                            <span className="text-[8.5px] text-slate-550 w-8">{language === 'ar' ? 'طالب:' : 'Std:'}</span>
-                            <span>{student.phone}</span>
-                          </div>
-                          {student.email && (
-                            <div className="text-[9px] text-slate-500 pl-9 max-w-[140px] truncate" title={student.email}>
-                              {student.email}
-                            </div>
-                          )}
-                          <div className="flex items-center gap-1">
-                            <span className="text-[8.5px] text-slate-550 w-8">{language === 'ar' ? 'ولي:' : 'Prnt:'}</span>
-                            <span>{student.parent_phone || 'N/A'}</span>
-                          </div>
-                          {student.parent_email && (
-                            <div className="text-[9px] text-slate-500 pl-9 max-w-[140px] truncate" title={student.parent_email}>
-                              {student.parent_email}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Course Attendance Column */}
-                      <td className="px-6 py-4 text-slate-400">
-                        <div className="flex flex-col gap-1.5 max-w-xs">
-                          {student.Courses && student.Courses.length > 0 ? (
-                            (() => {
-                              const c = student.Courses[0];
-                              const stats = getStudentCourseAttendanceStats(student, c.id);
-
-                              return (
-                                <div className="space-y-1 text-start">
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-950 border border-slate-850 text-[9px] text-slate-300 font-semibold">
-                                      {c.title}
-                                    </span>
-                                    <span className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border ${
-                                      stats.remaining <= 1
-                                        ? 'bg-rose-500/10 border-rose-500/25 text-rose-400 shadow-sm animate-pulse'
-                                        : stats.remaining <= 3
-                                        ? 'bg-amber-500/10 border-amber-500/25 text-amber-400'
-                                        : 'bg-slate-950 border-slate-850 text-slate-450'
-                                    }`}>
-                                      {stats.attended}/{stats.paid}
-                                    </span>
-                                  </div>
-                                  {student.Courses.length > 1 && (
-                                    <button
-                                      onClick={() => handleManageEnrollments(student)}
-                                      className="text-[9px] text-purple-400 hover:text-purple-300 font-semibold block cursor-pointer"
-                                    >
-                                      +{student.Courses.length - 1} {language === 'ar' ? 'أخرى' : 'more'}
-                                    </button>
-                                  )}
-                                </div>
-                              );
-                            })()
-                          ) : (
-                            <span className="text-[10px] text-slate-600 italic">-</span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Financial Balance Column */}
-                      <td className="px-6 py-4">
-                        <div className="text-start">
-                          {student.Courses && student.Courses.length > 0 ? (
-                            (() => {
-                              const c = student.Courses[0];
-                              const balanceInfo = getCoursePaymentsBalance(student, c.id);
-                              return (
-                                <span className={`inline-flex px-1.5 py-0.5 rounded text-[9.5px] font-bold font-mono border ${
-                                  balanceInfo.balance <= 0 
-                                    ? 'bg-emerald-500/10 text-emerald-450 border border-emerald-500/20' 
-                                    : 'bg-rose-500/10 text-rose-455 border border-rose-500/20'
-                                }`}>
-                                  {balanceInfo.balance > 0 ? `${balanceInfo.balance.toFixed(2)} DA` : t('students.balanceSettled')}
-                                </span>
-                              );
-                            })()
-                          ) : (
-                            <span className="text-[10px] text-slate-600 italic">-</span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Status Column */}
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold border ${getStatusBadgeStyle(student.status)}`}>
-                          <span className="h-1 w-1 rounded-full bg-current"></span>
-                          {student.status === 'Active' ? t('common.active') : student.status === 'Dropped' ? (language === 'ar' ? 'منقطع' : 'Dropped') : (language === 'ar' ? 'متخرج' : 'Graduated')}
-                        </span>
-                      </td>
-
-                      {/* Actions Column */}
-                      <td className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4`}>
-                        <div className="flex items-center justify-end gap-1 flex-wrap sm:flex-nowrap">
-                          {/* BookOpen: Enroll */}
-                          <button
-                            onClick={() => handleManageEnrollments(student)}
-                            className="p-1.5 text-slate-450 hover:text-purple-400 hover:bg-purple-500/10 rounded-lg transition-all cursor-pointer"
-                            title={t('students.enrollmentBtn')}
-                          >
-                            <BookOpen className="h-3.5 w-3.5" />
-                          </button>
-                          
-                          {/* Award: Grades */}
-                          <button
-                            type="button"
-                            onClick={() => handleOpenGradesModal(student)}
-                            className="p-1.5 text-slate-450 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all cursor-pointer"
-                            title={t('customFeatures.gradesBtn')}
-                          >
-                            <Award className="h-3.5 w-3.5" />
-                          </button>
-
-                          {/* CreditCard: Student Card */}
-                          <button
-                            type="button"
-                            onClick={() => handleOpenStudentCardModal(student)}
-                            className="p-1.5 text-slate-450 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all cursor-pointer"
-                            title={t('customFeatures.studentCardBtn')}
-                          >
-                            <CreditCard className="h-3.5 w-3.5" />
-                          </button>
-
-                          {/* Printer: Invoice Summary */}
-                          <button
-                            type="button"
-                            onClick={() => setActivePrintStudent(student)}
-                            className="p-1.5 text-slate-450 hover:text-blue-450 hover:bg-blue-500/10 rounded-lg transition-all cursor-pointer"
-                            title={t('students.printSummaryTooltip')}
-                          >
-                            <Printer className="h-3.5 w-3.5" />
-                          </button>
-
-                          {/* FileText: Registration Certificate */}
-                          <button
-                            type="button"
-                            onClick={() => setActivePrintCertificateStudent(student)}
-                            className="p-1.5 text-slate-450 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-all cursor-pointer"
-                            title={language === 'ar' ? 'طباعة شهادة تسجيل' : 'Print Enrollment Certificate'}
-                          >
-                            <FileText className="h-3.5 w-3.5" />
-                          </button>
-
-                          {/* Edit */}
-                          {hasPermission('students:write') && (
-                            <button
-                              onClick={() => handleOpenEditModal(student)}
-                              className="p-1.5 text-slate-450 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-all cursor-pointer"
-                              title={t('students.editStudentTooltip')}
-                            >
-                              <Edit className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-
-                          {/* Delete */}
-                          {hasPermission('students:delete') && (
-                            <button
-                              onClick={() => handleDeleteStudent(student.id, student.full_name)}
-                              className="p-1.5 text-slate-455 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all cursor-pointer"
-                              title={t('students.deleteStudentTooltip')}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <AdvancedTable 
+            data={filteredStudents}
+            columns={columns}
+            rowSelection={rowSelection}
+            onRowSelectionChange={setRowSelection}
+            enablePagination={true}
+            defaultPageSize={10}
+            onRowClick={(row) => row.toggleSelected()}
+          />
         )}
       </div>
-      
-      </div>
+    </div>
 
       {/* Import CSV Modal */}
       {isImportModalOpen && (
@@ -1918,17 +2012,15 @@ export default function Students() {
                           .filter(h => !Object.values(columnMapping).includes(h))
                           .map(field => (
                             <label key={field} className="flex items-center gap-2 text-xs text-slate-350 cursor-pointer hover:text-white transition-colors">
-                              <input
-                                type="checkbox"
+                              <CustomCheckbox
                                 checked={selectedExtraFields.includes(field)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
+                                onChange={(val) => {
+                                  if (val) {
                                     setSelectedExtraFields([...selectedExtraFields, field]);
                                   } else {
                                     setSelectedExtraFields(selectedExtraFields.filter(f => f !== field));
                                   }
                                 }}
-                                className="rounded text-blue-600 focus:ring-0 focus:ring-offset-0 bg-slate-900 border-slate-850"
                               />
                               <span className="font-mono text-[10.5px]">{field}</span>
                             </label>
@@ -3222,6 +3314,7 @@ export default function Students() {
         </div>
       </>
     )}
+
     </div>
   )
 }

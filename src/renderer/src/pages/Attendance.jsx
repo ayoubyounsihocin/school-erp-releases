@@ -1273,7 +1273,7 @@ function Attendance() {
           )}
 
           {/* Daily Sheet Directory Table */}
-          <div className="w-full bg-slate-900/60 border border-slate-800/60 rounded-2xl overflow-hidden shadow-xl">
+          <div className="w-full bg-slate-900/60 border border-slate-800/60 rounded-2xl overflow-hidden">
             {loadingSheet ? (
               <div className="flex flex-col items-center justify-center py-20 text-slate-500 gap-3">
                 <RefreshCw className="h-8 w-8 animate-spin text-blue-500" />
@@ -1654,7 +1654,7 @@ function Attendance() {
           </div>
 
           {/* Directory Log Table */}
-          <div className="w-full bg-slate-900/60 border border-slate-800/60 rounded-2xl overflow-hidden shadow-xl animate-fade-in">
+          <div className="w-full bg-slate-900/60 border border-slate-800/60 rounded-2xl overflow-hidden animate-fade-in">
             <div className="px-6 py-4 border-b border-slate-800/60 bg-slate-955/40">
               <h3 className="text-sm font-semibold text-slate-200">{t('attendance.tabLogs') || 'Absences History Log'}</h3>
             </div>
@@ -1839,7 +1839,7 @@ function Attendance() {
           </div>
 
           {/* Saved Sheets List Table */}
-          <div className="w-full bg-slate-900/60 border border-slate-800/60 rounded-2xl overflow-hidden shadow-xl animate-fade-in">
+          <div className="w-full bg-slate-900/60 border border-slate-800/60 rounded-2xl overflow-hidden animate-fade-in">
             <div className="px-6 py-4 border-b border-slate-800/60 bg-slate-955/40">
               <h3 className="text-sm font-semibold text-slate-200">{t('attendance.tabSavedSheets') || 'Saved Attendance Sheets'}</h3>
             </div>

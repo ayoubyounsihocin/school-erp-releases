@@ -1013,7 +1013,7 @@ export default function Courses() {
           {activeSubTab === 'catalog' && hasPermission('courses:write') && (
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-semibold tracking-wide shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 transition-all cursor-pointer shrink-0"
+              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-semibold tracking-wide hover:transition-all cursor-pointer shrink-0"
             >
               <Plus className="h-4 w-4" />
               {t('courses.addCourse')}
@@ -1022,7 +1022,7 @@ export default function Courses() {
           {activeSubTab === 'schedule' && hasPermission('courses:write') && (
             <button
               onClick={() => setIsAddScheduleModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-semibold tracking-wide shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 transition-all cursor-pointer shrink-0"
+              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-semibold tracking-wide hover:transition-all cursor-pointer shrink-0"
             >
               <Plus className="h-4 w-4" />
               {t('courses.newSchedule')}
@@ -1336,7 +1336,7 @@ export default function Courses() {
               </div>
 
               {/* Timetable Grid (Full Width) */}
-              <div className="w-full bg-slate-900/60 border border-slate-800/60 rounded-2xl overflow-hidden shadow-xl p-4 space-y-4">
+              <div className="w-full bg-slate-900/60 border border-slate-800/60 rounded-2xl overflow-hidden p-4 space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
                   <h3 className="text-sm font-semibold text-slate-200">{language === 'ar' ? 'توقيت المحاضرات الأسبوعي' : 'Weekly Lecture Schedule'}</h3>
                   <div className="flex items-center gap-2">
@@ -1516,7 +1516,7 @@ export default function Courses() {
                                               </span>
                                               <button
                                                 type="button"
-                                                onClick={() => handleDeleteSchedule(sched.id)}
+                                                onClick={() => handleScheduleDelete(sched.id)}
                                                 className="opacity-0 group-hover/item:opacity-100 p-0.5 hover:bg-slate-800 text-rose-505 rounded transition-all cursor-pointer no-print"
                                                 title={t('courses.deleteScheduleTooltip')}
                                               >
@@ -1629,10 +1629,10 @@ export default function Courses() {
                                         </p>
                                         <div className="flex items-center justify-between border-t border-slate-800/60 mt-2 pt-1.5 text-[9px] text-slate-500 font-sans">
                                           <span>{matrixActiveDay}</span>
-                                          <button
-                                            type="button"
-                                            onClick={() => handleDeleteSchedule(cellSched.id)}
-                                            className="opacity-0 group-hover/item:opacity-100 p-0.5 hover:bg-slate-800 text-rose-500 rounded transition-all cursor-pointer no-print"
+                                           <button
+                                             type="button"
+                                             onClick={() => handleScheduleDelete(cellSched.id)}
+                                             className="opacity-0 group-hover/item:opacity-100 p-0.5 hover:bg-slate-800 text-rose-500 rounded transition-all cursor-pointer no-print"
                                             title="Delete"
                                           >
                                             <Trash2 className="h-3.5 w-3.5" />
@@ -1693,7 +1693,7 @@ export default function Courses() {
                     })
                     setIsAddRequestModalOpen(true)
                   }}
-                  className="flex items-center gap-2 px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-semibold tracking-wide shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 transition-all cursor-pointer shrink-0"
+                  className="flex items-center gap-2 px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-semibold tracking-wide hover:transition-all cursor-pointer shrink-0"
                 >
                   <Plus className="h-4 w-4" />
                   {language === 'ar' ? 'تقديم طلب جديد' : 'Submit New Request'}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useLanguage } from '../i18n'
-import { DollarSign,ArrowUpRight,ArrowDownRight,Plus,RefreshCw,AlertCircle,Receipt,Tag,FileText,User,CreditCard,Search,X,Edit,Trash2,Printer,Download,Mail } from 'lucide-react'
+import { DollarSign,ArrowUpRight,ArrowDownRight,Plus,RefreshCw,AlertCircle,Receipt,Tag,FileText,User,CreditCard,Search,X,Edit,Trash2,Printer,Download,Mail,Check } from 'lucide-react'
 import { ipcService } from '../services/ipcService'
 import { 
   getPeriodStartDateStr as getPeriodStartDateStrHelper,
@@ -1873,7 +1873,7 @@ export default function Finances() {
           {activeTab === 'payments' && (
             <div className="lg:col-span-3 w-full">
               {/* Payments Table */}
-              <div className="w-full bg-slate-900/60 border border-slate-800/60 rounded-2xl overflow-hidden shadow-xl">
+              <div className="w-full bg-slate-900/60 border border-slate-800/60 rounded-2xl overflow-hidden ">
                 <div className="px-6 py-4 border-b border-slate-800/60 bg-slate-950/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <h3 className="text-sm font-semibold text-slate-200">{language === 'ar' ? 'سجل تسويات رسوم الطلاب' : 'Tuition Payment Ledger'}</h3>
                   <div className="flex items-center gap-2">
@@ -2051,7 +2051,7 @@ export default function Finances() {
           {activeTab === 'expenses' && (
             <div className="lg:col-span-3 w-full">
               {/* Expenses Table */}
-              <div className="w-full bg-slate-900/60 border border-slate-800/60 rounded-2xl overflow-hidden shadow-xl">
+              <div className="w-full bg-slate-900/60 border border-slate-800/60 rounded-2xl overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-800/60 bg-slate-950/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <h3 className="text-sm font-semibold text-slate-200">{t('finances.expenseLedger')}</h3>
                   <div className="flex items-center gap-2">
@@ -2208,7 +2208,7 @@ export default function Finances() {
 
           {/* ==================== UNPAID BALANCES WORKSPACE ==================== */}
           {activeTab === 'unpaid' && (
-            <div className="lg:col-span-3 bg-slate-900/60 border border-slate-800/60 rounded-2xl overflow-hidden shadow-xl animate-fade-in">
+            <div className="lg:col-span-3 bg-slate-900/60 border border-slate-800/60 rounded-2xl overflow-hidden animate-fade-in">
               <div className="px-6 py-4 border-b border-slate-800/60 bg-slate-950/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                   <h3 className="text-sm font-semibold text-slate-200">{t('finances.tuitionReceivablesDirectory')}</h3>
@@ -2346,7 +2346,7 @@ export default function Finances() {
           {activeTab === 'instructor-payments' && (
             <div className="lg:col-span-3 w-full">
               {/* Instructor Payments Table */}
-              <div className="w-full bg-slate-900/60 border border-slate-800/60 rounded-2xl overflow-hidden shadow-xl animate-fade-in">
+              <div className="w-full bg-slate-900/60 border border-slate-800/60 rounded-2xl overflow-hidden animate-fade-in">
                 <div className="px-6 py-4 border-b border-slate-800/60 bg-slate-955/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                     <div>

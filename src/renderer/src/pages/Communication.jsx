@@ -433,19 +433,19 @@ export default function Communication() {
         <div className="flex bg-slate-900/60 p-1 border border-slate-800/50 rounded-xl self-start md:self-auto select-none">
           <button
             onClick={() => setActiveTab('composer')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${activeTab === 'composer' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${activeTab === 'composer' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
           >
             {isAr ? 'إنشاء رسالة' : 'Compose Email'}
           </button>
           <button
             onClick={() => setActiveTab('templates')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${activeTab === 'templates' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${activeTab === 'templates' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
           >
             {isAr ? 'قوالب الرسائل' : 'Saved Templates'}
           </button>
           <button
             onClick={() => setActiveTab('directory')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${activeTab === 'directory' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${activeTab === 'directory' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
           >
             {isAr ? 'دليل الاتصالات' : 'Contacts Directory'}
           </button>
@@ -900,7 +900,7 @@ export default function Communication() {
                 type="button"
                 onClick={handleSendEmails}
                 disabled={sending || getRecipients().length === 0}
-                className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:from-slate-200 disabled:to-slate-200 dark:disabled:from-slate-800 dark:disabled:to-slate-800 disabled:text-slate-400 dark:disabled:text-slate-500 text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-500/10 disabled:shadow-none cursor-pointer disabled:cursor-not-allowed border border-blue-500/10 disabled:border-slate-300 dark:disabled:border-slate-800 shrink-0"
+                className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:from-slate-200 disabled:to-slate-200 dark:disabled:from-slate-800 dark:disabled:to-slate-800 disabled:text-slate-400 dark:disabled:text-slate-500 text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-2 transition-all disabled:shadow-none cursor-pointer disabled:cursor-not-allowed border border-blue-500/10 disabled:border-slate-300 dark:disabled:border-slate-800 shrink-0"
               >
                 {sending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                 {isAr ? 'إرسال البريد الإلكتروني' : 'Broadcast Email Message'}
