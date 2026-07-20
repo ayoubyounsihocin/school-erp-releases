@@ -1713,13 +1713,13 @@ export default function Courses() {
               <div className="border border-slate-800/60 rounded-xl overflow-hidden">
                 <table className={`${language === 'ar' ? 'text-right' : 'text-left'} w-full border-collapse`}>
                   <thead>
-                    <tr className="bg-slate-955 border-b border-slate-800/60 text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
-                      <th className="px-4 py-3 text-left rtl:text-right">{t('courses.requestType')}</th>
-                      <th className="px-4 py-3 text-left rtl:text-right">{t('courses.courseName')}</th>
-                      <th className="px-4 py-3 text-left rtl:text-right">{t('courses.requestedBy')}</th>
-                      <th className="px-4 py-3 text-left rtl:text-right">{t('courses.description')}</th>
-                      <th className="px-4 py-3 text-left rtl:text-right">{t('courses.timeElapsed')}</th>
-                      <th className="px-4 py-3 text-right rtl:text-left">{t('common.actions')}</th>
+                    <tr className="bg-slate-955 border-b border-slate-800/80 text-[10px] font-semibold text-slate-400 uppercase tracking-wide select-none">
+                      <th className="px-4 py-3 text-left rtl:text-right border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('courses.requestType')}</th>
+                      <th className="px-4 py-3 text-left rtl:text-right border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('courses.courseName')}</th>
+                      <th className="px-4 py-3 text-left rtl:text-right border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('courses.requestedBy')}</th>
+                      <th className="px-4 py-3 text-left rtl:text-right border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('courses.description')}</th>
+                      <th className="px-4 py-3 text-left rtl:text-right border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('courses.timeElapsed')}</th>
+                      <th className="px-4 py-3 text-right rtl:text-left border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('common.actions')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/30 text-xs text-slate-300">

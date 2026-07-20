@@ -1981,14 +1981,14 @@ export default function Finances() {
                   <div className="overflow-x-auto">
                     <table className={`${language === 'ar' ? 'text-right' : 'text-left'} w-full border-collapse`}>
                       <thead>
-                        <tr className="border-b border-slate-800/60 bg-slate-955/20 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                          <th className="px-6 py-4">{t('finances.receiptNoCol')}</th>
-                          <th className="px-6 py-4">{t('finances.studentCol')}</th>
-                          <th className="px-6 py-4">{t('finances.courseCol')}</th>
-                          <th className="px-6 py-4">{t('finances.methodCol')}</th>
-                          <th className="px-6 py-4">{t('finances.amountCol')}</th>
-                          <th className="px-6 py-4">{t('finances.dateCol')}</th>
-                          <th className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4 no-print`}>{t('finances.actionsCol')}</th>
+                        <tr className="border-b border-slate-800/80 bg-slate-955/20 text-[10px] font-semibold text-slate-400 uppercase tracking-wider select-none">
+                          <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('finances.receiptNoCol')}</th>
+                          <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('finances.studentCol')}</th>
+                          <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('finances.courseCol')}</th>
+                          <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('finances.methodCol')}</th>
+                          <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('finances.amountCol')}</th>
+                          <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('finances.dateCol')}</th>
+                          <th className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4 no-print border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none`}>{t('finances.actionsCol')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800/30 text-xs text-slate-300">
@@ -2157,12 +2157,12 @@ export default function Finances() {
                   <div className="overflow-x-auto">
                     <table className={`${language === 'ar' ? 'text-right' : 'text-left'} w-full border-collapse`}>
                       <thead>
-                        <tr className="border-b border-slate-800/60 bg-slate-955/20 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                          <th className="px-6 py-4">{t('finances.categoryCol')}</th>
-                          <th className="px-6 py-4">{t('finances.descriptionCol')}</th>
-                          <th className="px-6 py-4">{t('finances.amountCol')}</th>
-                          <th className="px-6 py-4">{t('finances.dateCol')}</th>
-                          <th className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4 no-print`}>{t('finances.actionsCol')}</th>
+                        <tr className="border-b border-slate-800/80 bg-slate-955/20 text-[10px] font-semibold text-slate-400 uppercase tracking-wider select-none">
+                          <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('finances.categoryCol')}</th>
+                          <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('finances.descriptionCol')}</th>
+                          <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('finances.amountCol')}</th>
+                          <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('finances.dateCol')}</th>
+                          <th className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4 no-print border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none`}>{t('finances.actionsCol')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800/30 text-xs text-slate-300">
@@ -2435,15 +2435,15 @@ export default function Finances() {
                     <div className="overflow-x-auto">
                       <table className={`${language === 'ar' ? 'text-right' : 'text-left'} w-full border-collapse`}>
                         <thead>
-                          <tr className="border-b border-slate-800/60 bg-slate-955/20 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                            <th className="px-6 py-4">{t('finances.teacherCol')}</th>
-                            <th className="px-6 py-4">{t('courses.courseTitleLabel')}</th>
-                            <th className="px-6 py-4">{language === 'ar' ? 'الدورة الشهرية' : 'Monthly Term'}</th>
-                            <th className="px-6 py-4">{language === 'ar' ? 'الرسوم المحصلة' : 'Tuition Collected'}</th>
-                            <th className="px-6 py-4">{language === 'ar' ? 'نسبة المستحقات (%)' : 'Payout Cut (%)'}</th>
-                            <th className="px-6 py-4">{language === 'ar' ? 'الراتب المحتسب' : 'Calculated Payout'}</th>
-                            <th className="px-6 py-4">{language === 'ar' ? 'الأيام المتبقية' : 'Days Left'}</th>
-                            <th className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4 no-print`}>{t('common.actions')}</th>
+                          <tr className="border-b border-slate-800/80 bg-slate-955/20 text-[10px] font-semibold text-slate-400 uppercase tracking-wider select-none">
+                            <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('finances.teacherCol')}</th>
+                            <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('courses.courseTitleLabel')}</th>
+                            <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{language === 'ar' ? 'الدورة الشهرية' : 'Monthly Term'}</th>
+                            <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{language === 'ar' ? 'الرسوم المحصلة' : 'Tuition Collected'}</th>
+                            <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{language === 'ar' ? 'نسبة المستحقات (%)' : 'Payout Cut (%)'}</th>
+                            <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{language === 'ar' ? 'الراتب المحتسب' : 'Calculated Payout'}</th>
+                            <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{language === 'ar' ? 'الأيام المتبقية' : 'Days Left'}</th>
+                            <th className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4 no-print border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none`}>{t('common.actions')}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800/30 text-xs text-slate-350">
@@ -2532,15 +2532,15 @@ export default function Finances() {
                   <div className="overflow-x-auto">
                     <table className={`${language === 'ar' ? 'text-right' : 'text-left'} w-full border-collapse`}>
                       <thead>
-                        <tr className="border-b border-slate-800/60 bg-slate-955/20 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                          <th className="px-6 py-4">{t('finances.receiptNoCol')}</th>
-                          <th className="px-6 py-4">{t('finances.teacherCol')}</th>
-                          <th className="px-6 py-4">{t('finances.courseCol')}</th>
-                          <th className="px-6 py-4">{language === 'ar' ? 'الدورة الشهرية' : 'Monthly Term'}</th>
-                          <th className="px-6 py-4">{t('finances.methodCol')}</th>
-                          <th className="px-6 py-4">{language === 'ar' ? 'المبلغ المصروف' : 'Amount Paid'}</th>
-                          <th className="px-6 py-4">{t('finances.dateCol')}</th>
-                          <th className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4 no-print`}>{t('common.actions')}</th>
+                        <tr className="border-b border-slate-800/80 bg-slate-955/20 text-[10px] font-semibold text-slate-400 uppercase tracking-wider select-none">
+                          <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('finances.receiptNoCol')}</th>
+                          <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('finances.teacherCol')}</th>
+                          <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('finances.courseCol')}</th>
+                          <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{language === 'ar' ? 'الدورة الشهرية' : 'Monthly Term'}</th>
+                          <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('finances.methodCol')}</th>
+                          <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{language === 'ar' ? 'المبلغ المصروف' : 'Amount Paid'}</th>
+                          <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('finances.dateCol')}</th>
+                          <th className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4 no-print border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none`}>{t('common.actions')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800/30 text-xs text-slate-300">

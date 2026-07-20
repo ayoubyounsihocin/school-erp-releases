@@ -1673,14 +1673,14 @@ function Attendance() {
               <div className="overflow-x-auto">
                 <table className={`${language === 'ar' ? 'text-right' : 'text-left'} w-full border-collapse`}>
                   <thead>
-                    <tr className="border-b border-slate-800/60 bg-slate-955/40 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                      <th className="px-6 py-4">{t('attendance.historyTableDate') || 'Date'}</th>
-                      <th className="px-6 py-4">{t('attendance.historyTableName') || 'Name'}</th>
-                      <th className="px-6 py-4">{t('attendance.historyTableRole') || 'Role'}</th>
-                      <th className="px-6 py-4">{t('attendance.historyTableCourse') || 'Course'}</th>
-                      <th className="px-6 py-4">{t('attendance.historyTableStatus') || 'Status'}</th>
-                      <th className="px-6 py-4">{t('attendance.historyTableReason') || 'Reason'}</th>
-                      <th className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4 w-52`}>{t('attendance.historyTableActions') || 'Actions'}</th>
+                    <tr className="border-b border-slate-800/80 bg-slate-955/40 text-[10px] font-semibold text-slate-400 uppercase tracking-wider select-none">
+                      <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('attendance.historyTableDate') || 'Date'}</th>
+                      <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('attendance.historyTableName') || 'Name'}</th>
+                      <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('attendance.historyTableRole') || 'Role'}</th>
+                      <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('attendance.historyTableCourse') || 'Course'}</th>
+                      <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('attendance.historyTableStatus') || 'Status'}</th>
+                      <th className="px-6 py-4 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('attendance.historyTableReason') || 'Reason'}</th>
+                      <th className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4 w-52 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none`}>{t('attendance.historyTableActions') || 'Actions'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/30 text-xs">

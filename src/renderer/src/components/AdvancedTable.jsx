@@ -97,7 +97,7 @@ export default function AdvancedTable({
                   return (
                     <th 
                       key={header.id}
-                      className="px-6 py-3.5 font-bold relative group"
+                      className="px-6 py-3.5 font-bold relative group border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none"
                       style={{ 
                         width: header.getSize(),
                         position: 'relative'
