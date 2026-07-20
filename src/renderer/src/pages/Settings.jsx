@@ -1219,10 +1219,10 @@ export default function Settings({ currentUser, onUserUpdate }) {
                       <table className={`${language === 'ar' ? 'text-right' : 'text-left'} w-full border-collapse`}>
                         <thead>
                           <tr className="bg-slate-950/40 border-b border-slate-850/60 text-[10px] font-bold text-slate-400 uppercase tracking-wider select-none">
-                            <th className="px-6 py-3.5 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('common.username')}</th>
-                            <th className="px-6 py-3.5 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('settings.roleCol')}</th>
-                            <th className="px-6 py-3.5 border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{language === 'ar' ? 'صلاحيات الوصول' : 'Permissions'}</th>
-                            <th className="px-6 py-3.5 text-center border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{t('common.actions')}</th>
+                            <th className="px-6 py-3.5">{t('common.username')}</th>
+                            <th className="px-6 py-3.5">{t('settings.roleCol')}</th>
+                            <th className="px-6 py-3.5">{language === 'ar' ? 'صلاحيات الوصول' : 'Permissions'}</th>
+                            <th className="px-6 py-3.5 text-center">{t('common.actions')}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-850/40 text-xs text-slate-300">

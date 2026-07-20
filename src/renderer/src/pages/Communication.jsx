@@ -1004,12 +1004,12 @@ export default function Communication() {
           {/* Directory Table/List */}
           <div className="max-h-[500px] overflow-y-auto rounded-xl border border-slate-800/40 bg-slate-950/10">
             <table className="w-full text-xs text-slate-300">
-              <thead className="bg-slate-900/40 text-[10px] uppercase font-bold text-slate-400 tracking-wider select-none">
-                <tr className="border-b border-slate-800/80">
-                  <th className="px-5 py-3 text-start border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{isAr ? 'الاسم' : 'Name'}</th>
-                  <th className="px-5 py-3 text-start border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{isAr ? 'الفئة' : 'Group'}</th>
-                  <th className="px-5 py-3 text-start border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{isAr ? 'البريد الإلكتروني' : 'Email Address'}</th>
-                  <th className="px-5 py-3 text-center border-r border-slate-200 dark:border-slate-700/60 last:border-none rtl:border-l rtl:border-r-0 rtl:last:border-none">{isAr ? 'الحالة البريدية' : 'Status'}</th>
+              <thead className="bg-slate-900/40 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                <tr>
+                  <th className="px-5 py-3 text-start">{isAr ? 'الاسم' : 'Name'}</th>
+                  <th className="px-5 py-3 text-start">{isAr ? 'الفئة' : 'Group'}</th>
+                  <th className="px-5 py-3 text-start">{isAr ? 'البريد الإلكتروني' : 'Email Address'}</th>
+                  <th className="px-5 py-3 text-center">{isAr ? 'الحالة البريدية' : 'Status'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-850">
