@@ -1,13 +1,125 @@
 import React, { useState, useEffect } from 'react'
 import { useLanguage } from '../i18n'
 import { useSearchParams } from 'react-router-dom'
-import { Shield, Monitor, Save, UserPlus, Trash2, User, Users, Lock, RefreshCw, Key, Database, Download, Upload, X, School, Phone, MapPin, Mail, Globe, Calendar, Sliders } from 'lucide-react'
+import { Shield, Monitor, Save, UserPlus, Trash2, User, Users, Lock, RefreshCw, Key, Database, Download, Upload, X, School, Phone, MapPin, Mail, Globe, Calendar, Sliders, FileText, Activity, CreditCard, BookOpen, GraduationCap, ShoppingCart, Search, Filter } from 'lucide-react'
+import AdvancedTable from '../components/AdvancedTable'
 import { ipcService } from '../services/ipcService'
 
 export default function Settings({ currentUser, onUserUpdate }) {
   const { language, setLanguage, t } = useLanguage()
   const [searchParams, setSearchParams] = useSearchParams()
   const activeSection = searchParams.get('tab') || 'general'
+
+  // Audit Logs States
+  const [auditLogs, setAuditLogs] = useState([])
+  const [loadingAuditLogs, setLoadingAuditLogs] = useState(false)
+  const [auditSearchTerm, setAuditSearchTerm] = useState('')
+  const [auditCategoryFilter, setAuditCategoryFilter] = useState('All')
+
+  const fetchAuditLogs = async () => {
+    setLoadingAuditLogs(true)
+    try {
+      const res = await ipcService.getAuditLogs({ limit: 500, offset: 0 })
+      console.log("fetchAuditLogs IPC response:", res)
+      const logsList = (res && Array.isArray(res)) ? res : ((res && res.logs) || [])
+      setAuditLogs(logsList)
+    } catch (err) {
+      console.error("Failed to load audit logs:", err)
+    } finally {
+      setLoadingAuditLogs(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeSection === 'audit') {
+      fetchAuditLogs()
+    }
+  }, [activeSection])
+
+  const getLogIcon = (action) => {
+    switch (action) {
+      case 'ADD_STUDENT':
+        return <UserPlus className="h-3.5 w-3.5 text-blue-400" />
+      case 'UPDATE_STUDENT':
+        return <Activity className="h-3.5 w-3.5 text-sky-400" />
+      case 'DELETE_STUDENT':
+        return <Activity className="h-3.5 w-3.5 text-rose-400" />
+      case 'RECORD_PAYMENT':
+        return <CreditCard className="h-3.5 w-3.5 text-emerald-400" />
+      case 'RECORD_EXPENSE':
+        return <ShoppingCart className="h-3.5 w-3.5 text-rose-400" />
+      case 'ADD_COURSE':
+      case 'UPDATE_COURSE':
+      case 'DELETE_COURSE':
+        return <BookOpen className="h-3.5 w-3.5 text-amber-400" />
+      case 'ADD_TEACHER':
+      case 'UPDATE_TEACHER':
+      case 'DELETE_TEACHER':
+        return <GraduationCap className="h-3.5 w-3.5 text-indigo-400" />
+      case 'ENROLL_STUDENT':
+        return <Users className="h-3.5 w-3.5 text-purple-400" />
+      default:
+        return <Activity className="h-3.5 w-3.5 text-slate-400" />
+    }
+  }
+
+  const getLogIconBg = (action) => {
+    switch (action) {
+      case 'ADD_STUDENT': return 'bg-blue-500/10 border-blue-500/20'
+      case 'UPDATE_STUDENT': return 'bg-sky-500/10 border-sky-500/20'
+      case 'DELETE_STUDENT': return 'bg-rose-500/10 border-rose-500/20'
+      case 'RECORD_PAYMENT': return 'bg-emerald-500/10 border-emerald-500/20'
+      case 'RECORD_EXPENSE': return 'bg-rose-500/10 border-rose-500/20'
+      case 'ADD_COURSE':
+      case 'UPDATE_COURSE':
+      case 'DELETE_COURSE':
+        return 'bg-amber-500/10 border-amber-500/20'
+      case 'ADD_TEACHER':
+      case 'UPDATE_TEACHER':
+      case 'DELETE_TEACHER':
+        return 'bg-indigo-500/10 border-indigo-500/20'
+      case 'ENROLL_STUDENT':
+        return 'bg-purple-500/10 border-purple-500/20'
+      default: return 'bg-slate-500/10 border-slate-500/20'
+    }
+  }
+
+  const formatLogAction = (action, lang) => {
+    if (!action) return '';
+    const isAr = lang === 'ar';
+    switch (action) {
+      case 'ADD_STUDENT': return isAr ? 'إضافة طالب جديد' : 'New Student Added';
+      case 'UPDATE_STUDENT': return isAr ? 'تعديل بيانات طالب' : 'Student Info Updated';
+      case 'DELETE_STUDENT': return isAr ? 'حذف طالب' : 'Student Deleted';
+      case 'ENROLL_STUDENT': return isAr ? 'تسجيل طالب في دورة' : 'Student Enrolled in Course';
+      case 'RECORD_PAYMENT': return isAr ? 'تسجيل دفعة مالية' : 'New Payment Recorded';
+      case 'DELETE_PAYMENT': return isAr ? 'حذف دفعة مالية' : 'Payment Deleted';
+      case 'ADD_COURSE': return isAr ? 'إضافة دورة تعليمية' : 'New Course Created';
+      case 'UPDATE_COURSE': return isAr ? 'تعديل دورة تعليمية' : 'Course Details Updated';
+      case 'DELETE_COURSE': return isAr ? 'حذف دورة تعليمية' : 'Course Deleted';
+      case 'ADD_TEACHER': return isAr ? 'إضافة أستاذ جديد' : 'New Teacher Added';
+      case 'UPDATE_TEACHER': return isAr ? 'تعديل بيانات أستاذ' : 'Teacher Info Updated';
+      case 'DELETE_TEACHER': return isAr ? 'حذف أستاذ' : 'Teacher Deleted';
+      case 'RECORD_EXPENSE': return isAr ? 'تسجيل مصاريف' : 'New Expense Recorded';
+      case 'DELETE_EXPENSE': return isAr ? 'حذف مصاريف' : 'Expense Deleted';
+      case 'RECORD_ABSENCE': return isAr ? 'تسجيل غياب' : 'Absence Recorded';
+      case 'SEND_BULK_EMAIL': return isAr ? 'إرسال بريد جماعي' : 'Bulk Email Broadcasted';
+      default: return action.replace(/_/g, ' ');
+    }
+  }
+
+  const formatTimeAgo = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    const diffMs = new Date() - d;
+    const minutes = Math.floor(diffMs / (1000 * 60));
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    if (minutes < 1) return language === 'ar' ? 'الآن' : 'Just now';
+    if (minutes < 60) return language === 'ar' ? `منذ ${minutes} دقيقة` : `${minutes}m ago`;
+    if (hours < 24) return language === 'ar' ? `منذ ${hours} ساعة` : `${hours}h ago`;
+    return d.toLocaleDateString(language === 'ar' ? 'ar-DZ-u-nu-latn' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
   const [schoolName, setSchoolName] = useState('School Name')
   const [academicYear, setAcademicYear] = useState('2026-2027')
   const [schoolAddress, setSchoolAddress] = useState('')
@@ -649,6 +761,107 @@ export default function Settings({ currentUser, onUserUpdate }) {
     }
   };
 
+  const auditLogsColumns = React.useMemo(() => [
+    {
+      accessorKey: 'action',
+      header: language === 'ar' ? 'نوع العملية' : 'Action Type',
+      cell: ({ row }) => {
+        const log = row.original;
+        return (
+          <div className="flex items-center gap-2">
+            <div className={`p-1.5 rounded-lg border ${getLogIconBg(log.action)}`}>
+              {getLogIcon(log.action)}
+            </div>
+            <span className="font-bold text-slate-200 text-xs">
+              {formatLogAction(log.action, language)}
+            </span>
+          </div>
+        );
+      },
+      size: 190
+    },
+    {
+      id: 'user',
+      accessorFn: row => row.User?.full_name || row.User?.username || 'System Admin',
+      header: language === 'ar' ? 'المستخدم' : 'Operator / User',
+      cell: ({ row }) => {
+        const log = row.original;
+        const userName = log.User?.full_name || log.User?.username || (language === 'ar' ? 'مسؤول النظام' : 'System Admin');
+        const userRole = log.User?.role || 'Admin';
+        return (
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-[10px] uppercase shrink-0">
+              {userName.charAt(0)}
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-slate-200 text-xs leading-none truncate">{userName}</p>
+              <p className="text-[9px] text-slate-500 mt-0.5">{userRole}</p>
+            </div>
+          </div>
+        );
+      },
+      size: 180
+    },
+    {
+      accessorKey: 'description',
+      header: language === 'ar' ? 'تفاصيل السجل' : 'Event Description',
+      cell: ({ getValue }) => (
+        <span className="text-slate-300 text-xs leading-relaxed max-w-md block truncate" title={getValue()}>
+          {getValue()}
+        </span>
+      ),
+      size: 320
+    },
+    {
+      accessorKey: 'createdAt',
+      header: language === 'ar' ? 'التاريخ والوقت' : 'Timestamp',
+      cell: ({ getValue }) => {
+        const val = getValue();
+        if (!val) return '-';
+        const d = new Date(val);
+        if (isNaN(d.getTime())) return '-';
+        const formatted = d.toLocaleString(language === 'ar' ? 'ar-DZ-u-nu-latn' : 'en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
+        return (
+          <div className="space-y-0.5">
+            <span className="text-slate-400 font-mono text-[11px] block">{formatted}</span>
+            <span className="text-[9px] text-slate-500 block font-semibold">{formatTimeAgo(val)}</span>
+          </div>
+        );
+      },
+      size: 180
+    }
+  ], [language]);
+
+  const filteredAuditLogs = React.useMemo(() => {
+    return auditLogs.filter(log => {
+      if (auditSearchTerm.trim()) {
+        const q = auditSearchTerm.toLowerCase();
+        const actionText = formatLogAction(log.action, language).toLowerCase();
+        const descText = (log.description || '').toLowerCase();
+        const userText = (log.User?.full_name || log.User?.username || '').toLowerCase();
+        if (!actionText.includes(q) && !descText.includes(q) && !userText.includes(q)) {
+          return false;
+        }
+      }
+      if (auditCategoryFilter !== 'All') {
+        if (auditCategoryFilter === 'Payments' && !['RECORD_PAYMENT', 'DELETE_PAYMENT'].includes(log.action)) return false;
+        if (auditCategoryFilter === 'Expenses' && !['RECORD_EXPENSE', 'DELETE_EXPENSE'].includes(log.action)) return false;
+        if (auditCategoryFilter === 'Students' && !['ADD_STUDENT', 'UPDATE_STUDENT', 'DELETE_STUDENT', 'ENROLL_STUDENT'].includes(log.action)) return false;
+        if (auditCategoryFilter === 'Teachers' && !['ADD_TEACHER', 'UPDATE_TEACHER', 'DELETE_TEACHER'].includes(log.action)) return false;
+        if (auditCategoryFilter === 'Courses' && !['ADD_COURSE', 'UPDATE_COURSE', 'DELETE_COURSE'].includes(log.action)) return false;
+        if (auditCategoryFilter === 'Absences' && !['RECORD_ABSENCE'].includes(log.action)) return false;
+      }
+      return true;
+    });
+  }, [auditLogs, auditSearchTerm, auditCategoryFilter, language]);
+
   return (
     <div className="w-full">
       <div className="space-y-6 animate-fade-in-up">
@@ -666,10 +879,11 @@ export default function Settings({ currentUser, onUserUpdate }) {
         <div className="space-y-6">
           
           {/* Top Navigation Bar */}
-          <div className="grid grid-cols-1 sm:grid-cols-6 gap-2 bg-slate-955/25 p-2 rounded-2xl border border-slate-850/60 backdrop-blur-md w-full">
+          <div className="grid grid-cols-2 sm:grid-cols-7 gap-2 bg-slate-955/25 p-2 rounded-2xl border border-slate-850/60 backdrop-blur-md w-full">
             {[
               { id: 'general', label: t('settings.tabGeneral'), icon: Monitor, color: 'text-blue-400' },
               { id: 'security', label: t('settings.tabSecurity'), icon: Shield, color: 'text-emerald-400' },
+              { id: 'audit', label: language === 'ar' ? 'سجل العمليات' : 'System Logs', icon: FileText, color: 'text-cyan-400' },
               { id: 'email', label: language === 'ar' ? 'إعدادات البريد' : 'Email Setup', icon: Mail, color: 'text-sky-400' },
               { id: 'backup', label: t('settings.tabBackup'), icon: Database, color: 'text-purple-400' },
               { id: 'license', label: t('settings.tabLicense'), icon: Key, color: 'text-amber-400' },
@@ -933,6 +1147,125 @@ export default function Settings({ currentUser, onUserUpdate }) {
                 </div>
               </div>
             )}
+
+            
+            {/* ==================== SYSTEM LOGS (AUDIT TRAIL) PANEL ==================== */}
+            {activeSection === 'audit' && (
+              <div className="space-y-6 animate-fade-in text-start flex-1">
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800/60 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-cyan-400">
+                      <FileText className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-200">
+                        {language === 'ar' ? 'سجل العمليات والنشاطات' : 'System Logs & Audit Trail'}
+                      </h3>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        {language === 'ar' 
+                          ? 'مراجعة جميع الأحداث والتغييرات الإدارية والمعاملات والأنشطة الأمنية المسجلة في النظام.'
+                          : 'Review all system events, administrative changes, transactions, and security audit history.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fetchAuditLogs()}
+                      disabled={loadingAuditLogs}
+                      className="px-3 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${loadingAuditLogs ? 'animate-spin' : ''}`} />
+                      {language === 'ar' ? 'تحديث' : 'Refresh'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const headers = ["ID", "Action", "Description", "User", "Role", "Date"];
+                        const rows = filteredAuditLogs.map(l => [
+                          l.id,
+                          l.action,
+                          `"${(l.description || '').replace(/"/g, '""')}"`,
+                          `"${l.User?.full_name || l.User?.username || 'System'}"`,
+                          l.User?.role || 'Admin',
+                          new Date(l.createdAt).toLocaleString()
+                        ]);
+                        const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+                        const encodedUri = encodeURI(csvContent);
+                        const link = document.createElement("a");
+                        link.setAttribute("href", encodedUri);
+                        link.setAttribute("download", `system_audit_logs_${new Date().toISOString().split('T')[0]}.csv`);
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }}
+                      className="px-3 py-1.5 bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 text-cyan-400 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      {language === 'ar' ? 'تصدير CSV' : 'Export CSV'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Filter and Search Bar */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-955/40 p-3 rounded-xl border border-slate-850">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-500" />
+                    <input
+                      type="text"
+                      placeholder={language === 'ar' ? 'البحث في سجل العمليات (الوصف، المستخدم، العملية)...' : 'Search logs by description, user, action...'}
+                      value={auditSearchTerm}
+                      onChange={(e) => setAuditSearchTerm(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-800/80 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/40 transition-colors"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+                    <select
+                      value={auditCategoryFilter}
+                      onChange={(e) => setAuditCategoryFilter(e.target.value)}
+                      className="px-3 py-2 bg-slate-950 border border-slate-800/80 rounded-xl text-xs text-slate-300 focus:outline-none focus:border-cyan-500/40 transition-colors cursor-pointer"
+                    >
+                      <option value="All">{language === 'ar' ? 'جميع التصنيفات' : 'All Categories'}</option>
+                      <option value="Payments">{language === 'ar' ? 'المدفوعات والمالية' : 'Payments & Finances'}</option>
+                      <option value="Expenses">{language === 'ar' ? 'المصاريف التشغيلية' : 'Expenses'}</option>
+                      <option value="Students">{language === 'ar' ? 'إدارة الطلاب' : 'Students'}</option>
+                      <option value="Teachers">{language === 'ar' ? 'إدارة المدرسين' : 'Teachers'}</option>
+                      <option value="Courses">{language === 'ar' ? 'المواد والدورات' : 'Courses'}</option>
+                      <option value="Absences">{language === 'ar' ? 'الحضور والغياب' : 'Absences'}</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Audit Logs Table */}
+                {loadingAuditLogs ? (
+                  <div className="p-10 text-center text-slate-500 text-xs flex items-center justify-center gap-2">
+                    <RefreshCw className="h-4 w-4 animate-spin text-cyan-400" />
+                    {language === 'ar' ? 'جاري تحميل سجل العمليات...' : 'Loading audit logs...'}
+                  </div>
+                ) : filteredAuditLogs.length === 0 ? (
+                  <div className="py-16 text-center text-slate-500 text-xs space-y-2">
+                    <FileText className="h-8 w-8 text-slate-650 mx-auto opacity-50" />
+                    <p className="font-semibold text-slate-400">{language === 'ar' ? 'لا توجد سجلات مطابقة' : 'No matching audit records'}</p>
+                    <p className="text-[10px] text-slate-500">{language === 'ar' ? 'لم يتم العثور على أي عمليات مطابقة لمعايير البحث.' : 'No system activity logs found matching your criteria.'}</p>
+
+                  </div>
+                ) : (
+                  <div className="pt-2">
+                    <AdvancedTable
+                      data={filteredAuditLogs}
+                      columns={auditLogsColumns}
+                      enablePagination={true}
+                      defaultPageSize={10}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
 
             {/* ==================== SECURITY & USER MANAGEMENT ==================== */}
             {activeSection === 'security' && (

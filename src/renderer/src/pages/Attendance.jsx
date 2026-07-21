@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useLanguage } from '../i18n'
 import { ipcService } from '../services/ipcService'
 import CustomDatePicker from '../components/CustomDatePicker'
+import AdvancedTable from '../components/AdvancedTable'
 import {
   CalendarCheck,
   AlertCircle,
@@ -1094,6 +1095,235 @@ function Attendance() {
     return true
   })
 
+  const savedSheetsColumns = React.useMemo(() => [
+    {
+      accessorKey: 'date',
+      header: t('attendance.historyTableDate') || 'Date',
+      cell: info => {
+        const sheet = info.row.original;
+        const isExpanded = expandedSheetKeys.includes(sheet.key);
+        return (
+          <button
+            onClick={() => toggleSheetExpand(sheet.key)}
+            className="flex items-center gap-2 hover:text-slate-200 transition-colors cursor-pointer text-left focus:outline-none font-mono font-medium text-slate-400"
+          >
+            {isExpanded ? (
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+            )}
+            <span>{sheet.date}</span>
+          </button>
+        );
+      },
+      size: 150
+    },
+    {
+      accessorKey: 'courseTitle',
+      header: t('attendance.historyTableCourse') || 'Course',
+      cell: info => {
+        const sheet = info.row.original;
+        return (
+          <div className="font-semibold text-slate-200 flex items-center gap-2">
+            <span>{sheet.courseTitle}</span>
+            {sheet.isFilled === false && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold border bg-rose-500/10 border-rose-500/20 text-rose-455">
+                {language === 'ar' ? 'معلق' : 'Pending'}
+              </span>
+            )}
+          </div>
+        );
+      },
+      size: 200
+    },
+    {
+      id: 'instructor',
+      header: language === 'ar' ? 'الأستاذ' : 'Instructor',
+      cell: info => {
+        const sheet = info.row.original;
+        const courseObj = courses.find(c => String(c.id) === String(sheet.CourseId));
+        const teacherName = courseObj?.Teacher?.full_name;
+        if (sheet.isFilled === false) {
+          return teacherName ? (
+            <span className="font-semibold text-slate-400">{teacherName}</span>
+          ) : (
+            <span className="text-slate-500">—</span>
+          );
+        }
+        const teacherRecord = sheet.records.find(r => r.type === 'Teacher');
+        const tName = teacherRecord 
+          ? (teacherRecord.Teacher ? teacherRecord.Teacher.full_name : 'Teacher')
+          : (teacherName || null);
+        if (teacherRecord) {
+          return (
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-slate-200">{tName}</span>
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold border ${
+                teacherRecord.status === 'Present'
+                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                  : teacherRecord.status === 'Excused'
+                  ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                  : 'bg-rose-500/10 border-rose-500/20 text-rose-455'
+              }`}>
+                {teacherRecord.status === 'Present'
+                  ? (t('attendance.statusPresent') || 'Present')
+                  : teacherRecord.status === 'Excused'
+                  ? (t('attendance.statusAbsentExcused') || 'Excused')
+                  : (t('attendance.statusAbsentUnexcused') || 'Unexcused')}
+              </span>
+            </div>
+          );
+        }
+        return tName ? (
+          <span className="font-semibold text-slate-400">{tName}</span>
+        ) : (
+          <span className="text-slate-500">—</span>
+        );
+      },
+      size: 180
+    },
+    {
+      id: 'attendanceRate',
+      header: t('attendance.ratioPresent') || 'Attendance Rate',
+      cell: info => {
+        const sheet = info.row.original;
+        if (sheet.isFilled === false) {
+          return <span className="font-medium text-slate-500 font-mono">—</span>;
+        }
+        const studentRecords = sheet.records.filter(r => r.type === 'Student');
+        const totalStudents = studentRecords.length;
+        const presentStudents = studentRecords.filter(r => r.status === 'Present').length;
+        const rate = totalStudents > 0 ? Math.round((presentStudents / totalStudents) * 100) : 0;
+        return totalStudents > 0 ? (
+          <span className="font-medium text-slate-300 font-mono">{presentStudents} / {totalStudents} ({rate}%)</span>
+        ) : (
+          <span className="text-slate-500">—</span>
+        );
+      },
+      size: 150
+    },
+    {
+      id: 'actions',
+      header: t('attendance.historyTableActions') || 'Actions',
+      cell: info => {
+        const sheet = info.row.original;
+        if (sheet.isFilled === false) {
+          return (
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => {
+                  setSelectedDate(sheet.date)
+                  setSelectedCourseId(String(sheet.CourseId))
+                  setActiveTab('daily')
+                }}
+                className="px-2.5 py-1 text-[10px] font-bold rounded-lg border bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-slate-950 transition-all cursor-pointer flex items-center gap-1"
+              >
+                <CalendarCheck className="h-3 w-3" />
+                {language === 'ar' ? 'تعبئة الحضور' : 'Fill Attendance'}
+              </button>
+            </div>
+          );
+        }
+        return (
+          <div className="flex items-center justify-end gap-2">
+            <button
+              onClick={() => setEditingSavedSheet(sheet)}
+              className="px-2.5 py-1 text-[10px] font-bold rounded-lg border bg-blue-500/10 border-blue-500/20 text-blue-400 hover:bg-blue-600 hover:text-white transition-all cursor-pointer flex items-center gap-1"
+            >
+              <Edit2 className="h-3 w-3" />
+              {t('attendance.viewEdit') || 'View / Edit'}
+            </button>
+            <button
+              onClick={() => handleDeleteSavedSheet(sheet)}
+              className="p-1.5 bg-slate-950 border border-slate-800 text-slate-400 hover:text-rose-500 hover:border-rose-500/30 rounded-lg transition-all cursor-pointer"
+              title={t('attendance.deleteSheet') || 'Delete Sheet'}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        );
+      },
+      size: 160
+    }
+  ], [courses, language, t, expandedSheetKeys]);
+
+  const renderSavedSheetDetails = React.useCallback((row) => {
+    const sheet = row.original;
+    const isExpanded = expandedSheetKeys.includes(sheet.key);
+    if (!isExpanded) return null;
+
+    const courseObj = courses.find(c => String(c.id) === String(sheet.CourseId));
+    const enrolledStudents = courseObj?.Students || [];
+
+    if (sheet.isFilled === false) {
+      return (
+        <div className="px-6 py-4 bg-slate-950/20 border-b border-slate-800/40 w-full">
+          <div className="space-y-3 animate-fade-in text-left">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+              {language === 'ar' ? 'الطلاب المسجلين' : 'Enrolled Students'} ({enrolledStudents.length})
+            </span>
+            {enrolledStudents.length === 0 ? (
+              <div className="text-xs text-slate-500 py-1">
+                {language === 'ar' ? 'لا يوجد طلاب مسجلين في هذا القسم.' : 'No enrolled students in this course.'}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {enrolledStudents.map(s => (
+                  <div key={s.id} className="flex items-center justify-between p-2.5 bg-slate-950/80 border border-slate-850 rounded-xl text-xs">
+                    <span className="font-semibold text-slate-350">{s.full_name}</span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold border bg-slate-900 border-slate-800 text-slate-500">
+                      {language === 'ar' ? 'معلق' : 'Pending'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    const studentRecords = sheet.records.filter(r => r.type === 'Student');
+    return (
+      <div className="px-6 py-4 bg-slate-950/20 border-b border-slate-800/40 w-full">
+        <div className="space-y-3 animate-fade-in text-left">
+          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+            {language === 'ar' ? 'تفاصيل حضور الطلاب' : 'Student Attendance Details'} ({studentRecords.length})
+          </span>
+          {studentRecords.length === 0 ? (
+            <div className="text-xs text-slate-500 py-1">
+              {language === 'ar' ? 'لا توجد سجلات حضور طلاب لهذه الحصة.' : 'No student attendance records for this session.'}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {studentRecords.map(r => {
+                const sName = r.Student ? r.Student.full_name : 'Unknown Student';
+                return (
+                  <div key={r.id} className="flex items-center justify-between p-2.5 bg-slate-955 border border-slate-850 rounded-xl text-xs">
+                    <span className="font-semibold text-slate-350">{sName}</span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold border ${
+                      r.status === 'Present'
+                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-450'
+                        : r.status === 'Excused'
+                        ? 'bg-amber-500/10 border-amber-500/20 text-amber-450'
+                        : 'bg-rose-500/10 border-rose-500/20 text-rose-455'
+                    }`}>
+                      {r.status === 'Present'
+                        ? (t('attendance.statusPresent') || 'Present')
+                        : r.status === 'Excused'
+                        ? (t('attendance.statusAbsentExcused') || 'Excused')
+                        : (t('attendance.statusAbsentUnexcused') || 'Unexcused')}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }, [courses, language, t, expandedSheetKeys]);
+
   const filteredLogs = absencesLog.filter(log => {
     if (log.status === 'Present') return false
 
@@ -1846,7 +2076,7 @@ function Attendance() {
 
             {loadingLogs ? (
               <div className="flex flex-col items-center justify-center py-20 text-slate-500 gap-3">
-                <RefreshCw className="h-8 w-8 animate-spin text-blue-500" />
+                <RefreshCw className="h-8 w-8 animate-spin text-blue-550" />
                 <p className="text-xs">{t('common.loading') || 'Loading...'}</p>
               </div>
             ) : filteredSavedSheets.length === 0 ? (
@@ -1855,227 +2085,14 @@ function Attendance() {
                 <p className="text-xs">{language === 'ar' ? 'لم يتم العثور على أي قوائم تحضير محفوظة.' : 'No saved attendance sheets found.'}</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className={`${language === 'ar' ? 'text-right' : 'text-left'} w-full border-collapse`}>
-                  <thead>
-                    <tr className="border-b border-slate-800/60 bg-slate-955/40 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                      <th className="px-6 py-4">{t('attendance.historyTableDate') || 'Date'}</th>
-                      <th className="px-6 py-4">{t('attendance.historyTableCourse') || 'Course'}</th>
-                      <th className="px-6 py-4">{language === 'ar' ? 'الأستاذ' : 'Instructor'}</th>
-                      <th className="px-6 py-4">{t('attendance.ratioPresent') || 'Attendance Rate'}</th>
-                      <th className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4 w-52`}>{t('attendance.historyTableActions') || 'Actions'}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/30 text-xs">
-                    {filteredSavedSheets.map(sheet => {
-                      const courseObj = courses.find(c => String(c.id) === String(sheet.CourseId))
-                      const teacherName = courseObj?.Teacher?.full_name
-                      const isExpanded = expandedSheetKeys.includes(sheet.key)
-
-                      if (sheet.isFilled === false) {
-                        const enrolledStudents = courseObj?.Students || []
-
-                        return (
-                          <React.Fragment key={sheet.key}>
-                            <tr className="hover:bg-slate-900/30 transition-all duration-150 text-slate-350">
-                              <td className="px-6 py-4 font-mono font-medium text-slate-400">
-                                <button
-                                  onClick={() => toggleSheetExpand(sheet.key)}
-                                  className="flex items-center gap-2 hover:text-slate-200 transition-colors cursor-pointer text-left focus:outline-none"
-                                >
-                                  {isExpanded ? (
-                                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-500" />
-                                  ) : (
-                                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-500" />
-                                  )}
-                                  <span>{sheet.date}</span>
-                                </button>
-                              </td>
-                              <td className="px-6 py-4 font-semibold text-slate-200">
-                                <div className="flex items-center gap-2">
-                                  <span>{sheet.courseTitle}</span>
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold border bg-rose-500/10 border-rose-500/20 text-rose-455">
-                                    {language === 'ar' ? 'معلق' : 'Pending'}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4">
-                                {teacherName ? (
-                                  <span className="font-semibold text-slate-400">{teacherName}</span>
-                                ) : (
-                                  <span className="text-slate-500">—</span>
-                                )}
-                              </td>
-                              <td className="px-6 py-4 font-medium text-slate-500 font-mono">—</td>
-                              <td className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4`}>
-                                <div className="flex items-center justify-end gap-2">
-                                  <button
-                                    onClick={() => {
-                                      setSelectedDate(sheet.date)
-                                      setSelectedCourseId(String(sheet.CourseId))
-                                      setActiveTab('daily')
-                                    }}
-                                    className="px-2.5 py-1 text-[10px] font-bold rounded-lg border bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-slate-950 transition-all cursor-pointer flex items-center gap-1"
-                                  >
-                                    <CalendarCheck className="h-3 w-3" />
-                                    {language === 'ar' ? 'تعبئة الحضور' : 'Fill Attendance'}
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                            {isExpanded && (
-                              <tr className="bg-slate-950/20 border-b border-slate-800/40">
-                                <td colSpan={5} className="px-6 py-4">
-                                  <div className="space-y-3 animate-fade-in text-left">
-                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                                      {language === 'ar' ? 'الطلاب المسجلين' : 'Enrolled Students'} ({enrolledStudents.length})
-                                    </span>
-                                    {enrolledStudents.length === 0 ? (
-                                      <div className="text-xs text-slate-500 py-1">
-                                        {language === 'ar' ? 'لا يوجد طلاب مسجلين في هذا القسم.' : 'No enrolled students in this course.'}
-                                      </div>
-                                    ) : (
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                                        {enrolledStudents.map(s => (
-                                          <div key={s.id} className="flex items-center justify-between p-2.5 bg-slate-950/80 border border-slate-850 rounded-xl text-xs">
-                                            <span className="font-semibold text-slate-350">{s.full_name}</span>
-                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold border bg-slate-900 border-slate-800 text-slate-500">
-                                              {language === 'ar' ? 'معلق' : 'Pending'}
-                                            </span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
-                          </React.Fragment>
-                        )
-                      }
-
-                      const teacherRecord = sheet.records.find(r => r.type === 'Teacher')
-                      const studentRecords = sheet.records.filter(r => r.type === 'Student')
-                      const totalStudents = studentRecords.length
-                      const presentStudents = studentRecords.filter(r => r.status === 'Present').length
-                      const rate = totalStudents > 0 ? Math.round((presentStudents / totalStudents) * 100) : 0
-
-                      const tName = teacherRecord 
-                        ? (teacherRecord.Teacher ? teacherRecord.Teacher.full_name : 'Teacher')
-                        : (teacherName || null)
-
-                      return (
-                        <React.Fragment key={sheet.key}>
-                          <tr className="hover:bg-slate-900/30 transition-all duration-150 text-slate-350">
-                            <td className="px-6 py-4 font-mono font-medium text-slate-400">
-                              <button
-                                onClick={() => toggleSheetExpand(sheet.key)}
-                                className="flex items-center gap-2 hover:text-slate-200 transition-colors cursor-pointer text-left focus:outline-none"
-                              >
-                                {isExpanded ? (
-                                  <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-500" />
-                                ) : (
-                                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-500" />
-                                )}
-                                <span>{sheet.date}</span>
-                              </button>
-                            </td>
-                            <td className="px-6 py-4 font-semibold text-slate-200">{sheet.courseTitle}</td>
-                            <td className="px-6 py-4">
-                              {teacherRecord ? (
-                                <div className="flex items-center gap-2">
-                                  <span className="font-semibold text-slate-200">{tName}</span>
-                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold border ${
-                                    teacherRecord.status === 'Present'
-                                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                                      : teacherRecord.status === 'Excused'
-                                      ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                                      : 'bg-rose-500/10 border-rose-500/20 text-rose-455'
-                                  }`}>
-                                    {teacherRecord.status === 'Present'
-                                      ? (t('attendance.statusPresent') || 'Present')
-                                      : teacherRecord.status === 'Excused'
-                                      ? (t('attendance.statusAbsentExcused') || 'Excused')
-                                      : (t('attendance.statusAbsentUnexcused') || 'Unexcused')}
-                                  </span>
-                                </div>
-                              ) : tName ? (
-                                <span className="font-semibold text-slate-400">{tName}</span>
-                              ) : (
-                                <span className="text-slate-500">—</span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 font-medium text-slate-300 font-mono">
-                              {totalStudents > 0 ? (
-                                <span>{presentStudents} / {totalStudents} ({rate}%)</span>
-                              ) : (
-                                <span className="text-slate-500">—</span>
-                              )}
-                            </td>
-                            <td className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4`}>
-                              <div className="flex items-center justify-end gap-2">
-                                <button
-                                  onClick={() => setEditingSavedSheet(sheet)}
-                                  className="px-2.5 py-1 text-[10px] font-bold rounded-lg border bg-blue-500/10 border-blue-500/20 text-blue-400 hover:bg-blue-600 hover:text-white transition-all cursor-pointer flex items-center gap-1"
-                                >
-                                  <Edit2 className="h-3 w-3" />
-                                  {t('attendance.viewEdit') || 'View / Edit'}
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteSavedSheet(sheet)}
-                                  className="p-1.5 bg-slate-950 border border-slate-800 text-slate-400 hover:text-rose-500 hover:border-rose-500/30 rounded-lg transition-all cursor-pointer"
-                                  title={t('attendance.deleteSheet') || 'Delete Sheet'}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                          {isExpanded && (
-                            <tr className="bg-slate-950/20 border-b border-slate-800/40">
-                              <td colSpan={5} className="px-6 py-4">
-                                <div className="space-y-3 animate-fade-in text-left">
-                                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                                    {language === 'ar' ? 'تفاصيل حضور الطلاب' : 'Student Attendance Details'} ({studentRecords.length})
-                                  </span>
-                                  {studentRecords.length === 0 ? (
-                                    <div className="text-xs text-slate-500 py-1">
-                                      {language === 'ar' ? 'لا توجد سجلات حضور طلاب لهذه الحصة.' : 'No student attendance records for this session.'}
-                                    </div>
-                                  ) : (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                                      {studentRecords.map(r => {
-                                        const sName = r.Student ? r.Student.full_name : 'Unknown Student'
-                                        return (
-                                          <div key={r.id} className="flex items-center justify-between p-2.5 bg-slate-955 border border-slate-850 rounded-xl text-xs">
-                                            <span className="font-semibold text-slate-350">{sName}</span>
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold border ${
-                                              r.status === 'Present'
-                                                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-450'
-                                                : r.status === 'Excused'
-                                                ? 'bg-amber-500/10 border-amber-500/20 text-amber-450'
-                                                : 'bg-rose-500/10 border-rose-500/20 text-rose-455'
-                                            }`}>
-                                              {r.status === 'Present'
-                                                ? (t('attendance.statusPresent') || 'Present')
-                                                : r.status === 'Excused'
-                                                ? (t('attendance.statusAbsentExcused') || 'Excused')
-                                                : (t('attendance.statusAbsentUnexcused') || 'Unexcused')}
-                                            </span>
-                                          </div>
-                                        )
-                                      })}
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      )
-                    })}
-                  </tbody>
-                </table>
+              <div className="">
+                <AdvancedTable 
+                  data={filteredSavedSheets}
+                  columns={savedSheetsColumns}
+                  enablePagination={true}
+                  defaultPageSize={10}
+                  renderRowDetails={renderSavedSheetDetails}
+                />
               </div>
             )}
           </div>

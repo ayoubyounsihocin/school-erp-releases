@@ -19,7 +19,8 @@ export default function AdvancedTable({
   rowClassName = () => '',
   rowSelection = {},
   onRowSelectionChange,
-  onRowClick
+  onRowClick,
+  renderRowDetails
 }) {
   const { language, t } = useLanguage();
   const isAr = language === 'ar';
@@ -148,54 +149,65 @@ export default function AdvancedTable({
             ))}
           </thead>
           <tbody className="divide-y divide-slate-800/35 text-xs text-slate-300">
-            {table.getRowModel().rows.map((row, rIdx) => (
-              <tr 
-                key={row.id}
-                draggable={!!onRowReorder}
-                onDragStart={(e) => handleDragStart(e, rIdx)}
-                onDragOver={(e) => handleDragOver(e, rIdx)}
-                onDrop={(e) => handleDrop(e, rIdx)}
-                onClick={(e) => {
-                  if (
-                    e.target.closest('button, a, input, select, textarea') || 
-                    e.target.getAttribute('role') === 'button' ||
-                    e.target.closest('.no-row-click')
-                  ) {
-                    return;
-                  }
-                  if (onRowClick) onRowClick(row, e);
-                }}
-                className={`border-b border-slate-850/30 last:border-b-0 transition-colors duration-150 ${
-                  onRowClick ? 'cursor-pointer' : ''
-                } ${
-                  row.getIsSelected() 
-                    ? 'bg-blue-600/10 dark:bg-blue-600/15 border-blue-500/25 text-blue-200 dark:text-blue-100 hover:bg-blue-600/15 dark:hover:bg-blue-600/20 shadow-sm' 
-                    : 'hover:bg-slate-900/35'
-                } ${
-                  draggedRowIndex === rIdx ? 'opacity-40 bg-slate-800/40' : ''
-                } ${rowClassName(row.original)}`}
-              >
-                {/* Drag handle column if row reordering is enabled */}
-                {onRowReorder && (
-                  <td className="px-4 py-3 text-slate-500 hover:text-slate-350 transition-colors cursor-grab active:cursor-grabbing">
-                    <GripVertical className="h-3.5 w-3.5" />
-                  </td>
-                )}
-                
-                {row.getVisibleCells().map((cell) => (
-                  <td 
-                    key={cell.id} 
-                    className="px-6 py-3 font-medium align-middle"
-                    style={{ width: cell.column.getSize() }}
+            {table.getRowModel().rows.map((row, rIdx) => {
+              const detailsContent = renderRowDetails ? renderRowDetails(row) : null;
+              return (
+                <React.Fragment key={row.id}>
+                  <tr 
+                    draggable={!!onRowReorder}
+                    onDragStart={(e) => handleDragStart(e, rIdx)}
+                    onDragOver={(e) => handleDragOver(e, rIdx)}
+                    onDrop={(e) => handleDrop(e, rIdx)}
+                    onClick={(e) => {
+                      if (
+                        e.target.closest('button, a, input, select, textarea') || 
+                        e.target.getAttribute('role') === 'button' ||
+                        e.target.closest('.no-row-click')
+                      ) {
+                        return;
+                      }
+                      if (onRowClick) onRowClick(row, e);
+                    }}
+                    className={`border-b border-slate-850/30 last:border-b-0 transition-colors duration-150 ${
+                      onRowClick ? 'cursor-pointer' : ''
+                    } ${
+                      row.getIsSelected() 
+                        ? 'bg-blue-600/10 dark:bg-blue-600/15 border-blue-500/25 text-blue-200 dark:text-blue-100 hover:bg-blue-600/15 dark:hover:bg-blue-600/20 shadow-sm' 
+                        : 'hover:bg-slate-900/35'
+                    } ${
+                      draggedRowIndex === rIdx ? 'opacity-40 bg-slate-800/40' : ''
+                    } ${rowClassName(row.original)}`}
                   >
-                    {flexRender(
-                      cell.column.columnDef.cell,
-                      cell.getContext()
+                    {/* Drag handle column if row reordering is enabled */}
+                    {onRowReorder && (
+                      <td className="px-4 py-3 text-slate-500 hover:text-slate-350 transition-colors cursor-grab active:cursor-grabbing">
+                        <GripVertical className="h-3.5 w-3.5" />
+                      </td>
                     )}
-                  </td>
-                ))}
-              </tr>
-            ))}
+                    
+                    {row.getVisibleCells().map((cell) => (
+                      <td 
+                        key={cell.id} 
+                        className="px-6 py-3 font-medium align-middle"
+                        style={{ width: cell.column.getSize() }}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                  {detailsContent && (
+                    <tr className="no-row-click border-none bg-slate-950/10">
+                      <td colSpan={row.getVisibleCells().length + (onRowReorder ? 1 : 0)} className="p-0 border-none">
+                        {detailsContent}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>

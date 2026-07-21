@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useLanguage } from '../i18n'
+import AdvancedTable from '../components/AdvancedTable'
 import { DollarSign,ArrowUpRight,ArrowDownRight,Plus,RefreshCw,AlertCircle,Receipt,Tag,FileText,User,CreditCard,Search,X,Edit,Trash2,Printer,Download,Mail,Check } from 'lucide-react'
 import { ipcService } from '../services/ipcService'
 import { 
@@ -823,6 +824,19 @@ export default function Finances() {
             updated.month = '';
             updated.year = '';
             updated.amount = '';
+          }
+        }
+      } else if (name === 'amount') {
+        const student = students.find(s => s.id === parseInt(prev.StudentId));
+        if (student && prev.CourseId) {
+          const balanceInfo = getCoursePaymentsBalance(student, parseInt(prev.CourseId));
+          const editAmount = selectedPayment ? parseFloat(selectedPayment.amount) : 0;
+          const maxAllowed = balanceInfo.balance + editAmount;
+          
+          if (parseFloat(value) > maxAllowed) {
+            updated.amount = maxAllowed.toString();
+          } else if (parseFloat(value) < 0) {
+            updated.amount = '0';
           }
         }
       }
@@ -1722,6 +1736,527 @@ export default function Finances() {
     return matchesSearch && matchesCategory && matchesDate;
   })
 
+    const paymentsColumns = React.useMemo(() => [
+    {
+      accessorKey: 'receipt_number',
+      header: t('finances.receiptNoCol'),
+      cell: ({ getValue }) => <span className="font-mono text-[10px] text-slate-500 tracking-wider whitespace-nowrap">{getValue()}</span>,
+      size: 180
+    },
+    {
+      accessorKey: 'Student',
+      header: t('finances.studentCol'),
+      cell: ({ row }) => {
+        const studentName = row.original.Student?.full_name || `Student ID: ${row.original.StudentId}`;
+        return (
+          <div className="flex items-center gap-2">
+            <User className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+            <span className="font-semibold text-slate-200 truncate">{studentName}</span>
+          </div>
+        );
+      },
+      size: 220
+    },
+    {
+      accessorKey: 'Course',
+      header: t('finances.courseCol'),
+      cell: ({ row }) => {
+        const courseName = row.original.Course?.title;
+        return courseName ? (
+          <span className="text-slate-300 font-semibold truncate block">{courseName}</span>
+        ) : (
+          <span className="text-slate-555 italic block">General</span>
+        );
+      },
+      size: 180
+    },
+    {
+      accessorKey: 'payment_method',
+      header: t('finances.methodCol'),
+      cell: ({ getValue }) => (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide bg-blue-500/10 border border-blue-500/20 text-blue-400">
+          {translateMethod(getValue() || 'Cash')}
+        </span>
+      ),
+      size: 110
+    },
+    {
+      accessorKey: 'amount',
+      header: t('finances.amountCol'),
+      cell: ({ getValue }) => (
+        <span className="font-bold text-emerald-400 font-mono whitespace-nowrap">
+          ${getValue().toFixed(2)}
+        </span>
+      ),
+      size: 120
+    },
+    {
+      accessorKey: 'date',
+      header: t('finances.dateCol'),
+      cell: ({ getValue }) => (
+        <span className="text-slate-555 whitespace-nowrap">
+          {formatTxDate(getValue())}
+        </span>
+      ),
+      size: 130
+    },
+    {
+      id: 'actions',
+      header: () => <div className={`${language === 'ar' ? 'text-left' : 'text-right'} no-print`}>{t('finances.actionsCol')}</div>,
+      cell: ({ row }) => {
+        const pay = row.original;
+        return (
+          <div className="flex items-center justify-end gap-1.5 no-print">
+            <button
+              type="button"
+              onClick={() => handlePrintPayment(pay)}
+              className="p-1 hover:bg-slate-800 text-blue-400 hover:text-blue-300 rounded cursor-pointer transition-colors inline-block"
+              title={t('finances.printReceiptTooltip')}
+            >
+              <Printer className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleEditPayment(pay)}
+              className="p-1 hover:bg-slate-800 text-amber-400 hover:text-amber-300 rounded cursor-pointer transition-colors inline-block"
+              title={t('finances.editPaymentTooltip')}
+            >
+              <Edit className="h-3.5 w-3.5" />
+            </button>
+            {hasPermission('finances:delete') && (
+              <button
+                type="button"
+                onClick={() => handleDeletePayment(pay.id)}
+                className="p-1 hover:bg-slate-800 text-rose-500 hover:text-rose-455 rounded cursor-pointer transition-colors inline-block"
+                title={t('finances.deletePaymentTooltip')}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        );
+      },
+      size: 120
+    }
+  ], [language, t, hasPermission]);
+
+  const expensesColumns = React.useMemo(() => [
+    {
+      accessorKey: 'category',
+      header: t('finances.categoryCol'),
+      cell: ({ getValue }) => (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide bg-rose-500/10 border border-rose-500/20 text-rose-400">
+          {translateCategory(getValue())}
+        </span>
+      ),
+      size: 140
+    },
+    {
+      accessorKey: 'description',
+      header: t('finances.descriptionCol'),
+      cell: ({ getValue }) => (
+        <span className="text-slate-200 max-w-xs truncate block">
+          {getValue()}
+        </span>
+      ),
+      size: 320
+    },
+    {
+      accessorKey: 'amount',
+      header: t('finances.amountCol'),
+      cell: ({ getValue }) => (
+        <span className="font-bold text-rose-400 font-mono whitespace-nowrap">
+          ${getValue().toFixed(2)}
+        </span>
+      ),
+      size: 120
+    },
+    {
+      accessorKey: 'date',
+      header: t('finances.dateCol'),
+      cell: ({ getValue }) => (
+        <span className="text-slate-550 whitespace-nowrap">
+          {formatTxDate(getValue())}
+        </span>
+      ),
+      size: 130
+    },
+    {
+      id: 'actions',
+      header: () => <div className={`${language === 'ar' ? 'text-left' : 'text-right'} no-print`}>{t('finances.actionsCol')}</div>,
+      cell: ({ row }) => {
+        const exp = row.original;
+        return (
+          <div className="flex items-center justify-end gap-1.5 no-print">
+            <button
+              type="button"
+              onClick={() => handleEditExpense(exp)}
+              className="p-1 hover:bg-slate-800 text-amber-400 hover:text-amber-300 rounded cursor-pointer transition-colors inline-block"
+              title={t('finances.editExpenseTooltip')}
+            >
+              <Edit className="h-3.5 w-3.5" />
+            </button>
+            {hasPermission('finances:delete') && (
+              <button
+                type="button"
+                onClick={() => handleDeleteExpense(exp.id)}
+                className="p-1 hover:bg-slate-800 text-rose-500 hover:text-rose-455 rounded cursor-pointer transition-colors inline-block"
+                title={t('finances.deleteExpenseTooltip')}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        );
+      },
+      size: 110
+    }
+  ], [language, t, hasPermission]);
+
+  const unpaidColumns = React.useMemo(() => [
+    {
+      accessorKey: 'student.full_name',
+      header: t('finances.studentCol'),
+      cell: ({ row }) => (
+        <span className="font-semibold text-slate-200 truncate block">
+          {row.original.student?.full_name}
+        </span>
+      ),
+      size: 220
+    },
+    {
+      accessorKey: 'course.title',
+      header: t('finances.courseCol'),
+      cell: ({ row }) => {
+        const item = row.original;
+        return (
+          <div className="space-y-0.5">
+            <p className="text-slate-300 font-semibold truncate">{item.course?.title}</p>
+            {item.unpaidMonths && item.unpaidMonths.length > 0 && (
+              <p className="text-[9.5px] text-rose-400 font-semibold mt-0.5 animate-pulse truncate">
+                {t('finances.pending')}: {item.unpaidMonths.map(m => `${translateMonth(m.month)} ${m.year}`).join(', ')}
+              </p>
+            )}
+          </div>
+        );
+      },
+      size: 260
+    },
+    {
+      accessorKey: 'totalTuition',
+      header: t('finances.tuitionPrice'),
+      cell: ({ getValue }) => (
+        <span className="font-mono font-semibold text-slate-400 whitespace-nowrap">
+          {getValue().toFixed(2)} DA
+        </span>
+      ),
+      size: 140
+    },
+    {
+      accessorKey: 'totalPaid',
+      header: t('finances.amountCol'),
+      cell: ({ getValue }) => (
+        <span className="font-mono font-semibold text-emerald-440 whitespace-nowrap">
+          {getValue().toFixed(2)} DA
+        </span>
+      ),
+      size: 140
+    },
+    {
+      accessorKey: 'balance',
+      header: t('finances.outstandingDue'),
+      cell: ({ getValue }) => (
+        <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/20 text-[10px] font-bold text-rose-455 font-mono whitespace-nowrap">
+          {getValue().toFixed(2)} DA
+        </span>
+      ),
+      size: 140
+    },
+    {
+      id: 'actions',
+      header: () => <div className={`${language === 'ar' ? 'text-left' : 'text-right'} no-print`}>{t('finances.action')}</div>,
+      cell: ({ row }) => {
+        const item = row.original;
+        return (
+          <div className="flex items-center justify-end gap-1.5 no-print">
+            <button
+              onClick={() => {
+                setSelectedPayment(null)
+                const today = new Date();
+                const yyyymmdd = today.getFullYear() + String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0');
+                const rand = Math.floor(1000 + Math.random() * 9000);
+                setPaymentForm({
+                  StudentId: item.student.id.toString(),
+                  CourseId: item.course.id.toString(),
+                  amount: item.unpaidMonths && item.unpaidMonths.length > 0 ? item.unpaidMonths[0].due.toString() : item.balance.toString(),
+                  receipt_number: `RCPT-${yyyymmdd}-${rand}`,
+                  payment_method: 'Cash',
+                  month: item.unpaidMonths && item.unpaidMonths.length > 0 ? item.unpaidMonths[0].month : '',
+                  year: item.unpaidMonths && item.unpaidMonths.length > 0 ? item.unpaidMonths[0].year.toString() : ''
+                });
+                setPaymentErrors({});
+                setActiveTab('payments');
+                setIsRecordPaymentModalOpen(true);
+              }}
+              className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 border border-blue-500/20 text-white rounded-lg text-[10px] font-semibold transition-colors cursor-pointer whitespace-nowrap"
+            >
+              {t('finances.recordPayment')}
+            </button>
+
+            <button
+              onClick={() => handleSendPaymentReminder(item)}
+              title={language === 'ar' ? 'إرسال تذكير بالدفع لولي الأمر' : 'Send payment reminder email to parent'}
+              className="p-1.5 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer inline-flex items-center justify-center shrink-0"
+            >
+              <Mail className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        );
+      },
+      size: 180
+    }
+  ], [language, t]);
+
+  const pendingPayoutsColumns = React.useMemo(() => [
+    {
+      accessorKey: 'teacherName',
+      header: t('finances.teacherCol'),
+      cell: ({ getValue }) => (
+        <span className="font-semibold text-slate-200 truncate block">{getValue()}</span>
+      ),
+      size: 180
+    },
+    {
+      accessorKey: 'courseTitle',
+      header: t('courses.courseTitleLabel'),
+      cell: ({ getValue }) => (
+        <span className="text-slate-300 truncate block">{getValue()}</span>
+      ),
+      size: 180
+    },
+    {
+      accessorKey: 'month',
+      header: language === 'ar' ? 'الدورة الشهرية' : 'Monthly Term',
+      cell: ({ row }) => (
+        <span className="text-slate-400 font-semibold whitespace-nowrap">
+          {translateMonth(row.original.month)} {row.original.year}
+        </span>
+      ),
+      size: 130
+    },
+    {
+      accessorKey: 'studentPaymentsSum',
+      header: language === 'ar' ? 'الرسوم المحصلة' : 'Tuition Collected',
+      cell: ({ getValue }) => (
+        <span className="font-mono font-bold text-slate-400 whitespace-nowrap">
+          {getValue().toFixed(2)} DA
+        </span>
+      ),
+      size: 150
+    },
+    {
+      accessorKey: 'defaultPayoutRate',
+      header: language === 'ar' ? 'نسبة المستحقات (%)' : 'Payout Cut (%)',
+      cell: ({ row }) => (
+        <span className="font-bold text-blue-400 font-mono whitespace-nowrap">
+          {row.original.payout_type === 'Fixed'
+            ? (language === 'ar' ? 'ثابت (شهري)' : 'Fixed (Monthly)')
+            : `${row.original.defaultPayoutRate}%`
+          }
+        </span>
+      ),
+      size: 140
+    },
+    {
+      id: 'calculatedPayout',
+      header: language === 'ar' ? 'الراتب المحتسب' : 'Calculated Payout',
+      cell: ({ row }) => {
+        const cycle = row.original;
+        const estimated = cycle.calculatedPayout !== undefined 
+          ? cycle.calculatedPayout 
+          : (cycle.payout_type === 'Fixed' ? cycle.fixed_payout_amount : (cycle.studentPaymentsSum * cycle.defaultPayoutRate) / 100);
+        return (
+          <span className="font-mono font-extrabold text-emerald-400 whitespace-nowrap">
+            {estimated.toFixed(2)} DA
+          </span>
+        );
+      },
+      size: 150
+    },
+    {
+      id: 'daysLeft',
+      header: language === 'ar' ? 'الأيام المتبقية' : 'Days Left',
+      cell: ({ row }) => {
+        const cycle = row.original;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const courseObj = courses.find(c => String(c.id) === String(cycle.courseId));
+        
+        let targetDate = null;
+        if (cycle.month && cycle.month.includes('-')) {
+          targetDate = parseTermEndDate(cycle.month, cycle.year);
+        } else if (courseObj && courseObj.createdAt) {
+          const start = new Date(courseObj.createdAt);
+          start.setHours(0, 0, 0, 0);
+          const timeElapsed = today.getTime() - start.getTime();
+          const elapsedDays = Math.max(0, Math.floor(timeElapsed / (1000 * 60 * 60 * 24)));
+          const cycleIndex = Math.floor(elapsedDays / 30);
+          
+          targetDate = new Date(start);
+          targetDate.setDate(start.getDate() + (cycleIndex + 1) * 30);
+        } else {
+          targetDate = parseTermEndDate(cycle.month, cycle.year);
+        }
+        
+        targetDate.setHours(0, 0, 0, 0);
+        const timeDiff = targetDate.getTime() - today.getTime();
+        const daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+
+        let badgeClass = "bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-sm";
+        let displayText = language === 'ar' ? `${daysLeft} يوم` : `${daysLeft} days`;
+        
+        if (daysLeft <= 0) {
+          badgeClass = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm";
+          displayText = language === 'ar' ? 'جاهز للدفع' : 'Ready';
+        } else if (daysLeft <= 5) {
+          badgeClass = "bg-rose-500/10 text-rose-455 border border-rose-500/25 shadow-sm";
+        } else if (daysLeft <= 15) {
+          badgeClass = "bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-sm";
+        }
+
+        return (
+          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold whitespace-nowrap ${badgeClass}`}>
+            {displayText}
+          </span>
+        );
+      },
+      size: 130
+    },
+    {
+      id: 'actions',
+      header: () => <div className={`${language === 'ar' ? 'text-left' : 'text-right'} no-print`}>{t('common.actions')}</div>,
+      cell: ({ row }) => {
+        const cycle = row.original;
+        return (
+          <div className="flex items-center justify-end no-print">
+            <button
+              onClick={() => handlePayInstructorFromPending(cycle)}
+              className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/25 hover:bg-emerald-600 text-emerald-450 hover:text-white rounded-xl text-[10px] font-semibold transition-all cursor-pointer shadow-sm hover:shadow-emerald-500/10 whitespace-nowrap"
+            >
+              {language === 'ar' ? 'دفع' : 'Pay'}
+            </button>
+          </div>
+        );
+      },
+      size: 100
+    }
+  ], [language, t, courses]);
+
+  const recordedPayoutsColumns = React.useMemo(() => [
+    {
+      accessorKey: 'receipt_number',
+      header: t('finances.receiptNoCol'),
+      cell: ({ getValue }) => (
+        <span className="font-mono text-[10px] text-slate-500 tracking-wider whitespace-nowrap">
+          {getValue()}
+        </span>
+      ),
+      size: 160
+    },
+    {
+      accessorKey: 'Teacher',
+      header: t('finances.teacherCol'),
+      cell: ({ row }) => (
+        <span className="font-semibold text-slate-200 truncate block">
+          {row.original.Teacher?.full_name || `Instructor ID: ${row.original.TeacherId}`}
+        </span>
+      ),
+      size: 180
+    },
+    {
+      accessorKey: 'Course',
+      header: t('finances.courseCol'),
+      cell: ({ row }) => (
+        <span className="text-slate-300 truncate block">
+          {row.original.Course?.title || (language === 'ar' ? 'عام / غير محدد' : 'General / Unassigned')}
+        </span>
+      ),
+      size: 180
+    },
+    {
+      id: 'term',
+      header: language === 'ar' ? 'الدورة الشهرية' : 'Monthly Term',
+      cell: ({ row }) => (
+        <span className="text-slate-300 font-semibold whitespace-nowrap">
+          {translateMonth(row.original.month)} {row.original.year}
+        </span>
+      ),
+      size: 130
+    },
+    {
+      accessorKey: 'payment_method',
+      header: t('finances.methodCol'),
+      cell: ({ getValue }) => (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide bg-blue-500/10 border border-blue-500/20 text-blue-400">
+          {getValue() || 'Cash'}
+        </span>
+      ),
+      size: 110
+    },
+    {
+      accessorKey: 'amount',
+      header: language === 'ar' ? 'المبلغ المصروف' : 'Amount Paid',
+      cell: ({ getValue }) => (
+        <span className="font-bold text-emerald-455 font-mono whitespace-nowrap">
+          {getValue().toFixed(2)} DA
+        </span>
+      ),
+      size: 130
+    },
+    {
+      accessorKey: 'date',
+      header: t('finances.dateCol'),
+      cell: ({ getValue }) => (
+        <span className="text-slate-555 whitespace-nowrap">
+          {formatTxDate(getValue())}
+        </span>
+      ),
+      size: 130
+    },
+    {
+      id: 'actions',
+      header: () => <div className={`${language === 'ar' ? 'text-left' : 'text-right'} no-print`}>{t('common.actions')}</div>,
+      cell: ({ row }) => {
+        const pay = row.original;
+        return (
+          <div className="flex items-center justify-end gap-1.5 no-print">
+            <button
+              type="button"
+              onClick={() => setActivePrintTeacherPayment(pay)}
+              className="p-1 hover:bg-slate-800 text-blue-400 hover:text-blue-300 rounded cursor-pointer transition-colors inline-block"
+              title={t('finances.printSalaryTooltip')}
+            >
+              <Printer className="h-3.5 w-3.5" />
+            </button>
+            {hasPermission('finances:delete') && (
+              <button
+                type="button"
+                onClick={() => handleDeleteTeacherPayment(pay.id)}
+                className="p-1 hover:bg-slate-800 text-rose-500 hover:text-rose-455 rounded cursor-pointer transition-colors inline-block"
+                title={t('finances.deleteSalaryTooltip') || 'Delete Payout'}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        );
+      },
+      size: 100
+    }
+  ], [language, t, hasPermission]);
+
+
   return (
     <div className="no-print">
       <div className="space-y-8 animate-fade-in-up">
@@ -1978,69 +2513,13 @@ export default function Finances() {
                     </button>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className={`${language === 'ar' ? 'text-right' : 'text-left'} w-full border-collapse`}>
-                      <thead>
-                        <tr className="border-b border-slate-800/60 bg-slate-955/20 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                          <th className="px-6 py-4">{t('finances.receiptNoCol')}</th>
-                          <th className="px-6 py-4">{t('finances.studentCol')}</th>
-                          <th className="px-6 py-4">{t('finances.courseCol')}</th>
-                          <th className="px-6 py-4">{t('finances.methodCol')}</th>
-                          <th className="px-6 py-4">{t('finances.amountCol')}</th>
-                          <th className="px-6 py-4">{t('finances.dateCol')}</th>
-                          <th className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4 no-print`}>{t('finances.actionsCol')}</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800/30 text-xs text-slate-300">
-                        {filteredPayments.map(pay => (
-                          <tr key={pay.id} className="hover:bg-slate-900/40 transition-colors">
-                            <td className="px-6 py-4 font-mono text-[10px] text-slate-500">{pay.receipt_number}</td>
-                            <td className="px-6 py-4 font-semibold text-slate-200">
-                              <div className="flex items-center gap-2">
-                                <User className="h-3.5 w-3.5 text-slate-500" />
-                                <span>{pay.Student?.full_name || `Student ID: ${pay.StudentId}`}</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-slate-300 font-semibold">{pay.Course?.title || <span className="text-slate-550 italic">General</span>}</td>
-                            <td className="px-6 py-4">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide bg-blue-500/10 border border-blue-500/20 text-blue-400">
-                                {translateMethod(pay.payment_method || 'Cash')}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 font-bold text-emerald-400 font-mono">${pay.amount.toFixed(2)}</td>
-                            <td className="px-6 py-4 text-slate-500">{formatTxDate(pay.date)}</td>
-                            <td className={`${language === 'ar' ? 'text-left' : 'text-right'} ${language === 'ar' ? 'space-x-reverse space-x-2' : 'space-x-2'} px-6 py-4 no-print`}>
-                              <button
-                                type="button"
-                                onClick={() => handlePrintPayment(pay)}
-                                className="p-1 hover:bg-slate-800 text-blue-400 hover:text-blue-300 rounded cursor-pointer transition-colors inline-block"
-                                title={t('finances.printReceiptTooltip')}
-                              >
-                                <Printer className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleEditPayment(pay)}
-                                className="p-1 hover:bg-slate-800 text-amber-400 hover:text-amber-300 rounded cursor-pointer transition-colors inline-block"
-                                title={t('finances.editPaymentTooltip')}
-                              >
-                                <Edit className="h-3.5 w-3.5" />
-                              </button>
-                              {hasPermission('finances:delete') && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeletePayment(pay.id)}
-                                  className="p-1 hover:bg-slate-800 text-rose-500 hover:text-rose-455 rounded cursor-pointer transition-colors inline-block"
-                                  title={t('finances.deletePaymentTooltip')}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="">
+                    <AdvancedTable 
+                      data={filteredPayments}
+                      columns={paymentsColumns}
+                      enablePagination={true}
+                      defaultPageSize={10}
+                    />
                   </div>
                 )}
               </div>
@@ -2154,52 +2633,13 @@ export default function Finances() {
                     </button>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className={`${language === 'ar' ? 'text-right' : 'text-left'} w-full border-collapse`}>
-                      <thead>
-                        <tr className="border-b border-slate-800/60 bg-slate-955/20 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                          <th className="px-6 py-4">{t('finances.categoryCol')}</th>
-                          <th className="px-6 py-4">{t('finances.descriptionCol')}</th>
-                          <th className="px-6 py-4">{t('finances.amountCol')}</th>
-                          <th className="px-6 py-4">{t('finances.dateCol')}</th>
-                          <th className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4 no-print`}>{t('finances.actionsCol')}</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800/30 text-xs text-slate-300">
-                        {filteredExpenses.map(exp => (
-                          <tr key={exp.id} className="hover:bg-slate-900/40 transition-colors">
-                            <td className="px-6 py-4">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide bg-rose-500/10 border border-rose-500/20 text-rose-400">
-                                {translateCategory(exp.category)}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-slate-200 max-w-xs truncate">{exp.description}</td>
-                            <td className="px-6 py-4 font-bold text-rose-400 font-mono">${exp.amount.toFixed(2)}</td>
-                            <td className="px-6 py-4 text-slate-500">{formatTxDate(exp.date)}</td>
-                            <td className={`${language === 'ar' ? 'text-left' : 'text-right'} ${language === 'ar' ? 'space-x-reverse space-x-2' : 'space-x-2'} px-6 py-4 no-print`}>
-                              <button
-                                type="button"
-                                onClick={() => handleEditExpense(exp)}
-                                className="p-1 hover:bg-slate-800 text-amber-400 hover:text-amber-300 rounded cursor-pointer transition-colors inline-block"
-                                title={t('finances.editExpenseTooltip')}
-                              >
-                                <Edit className="h-3.5 w-3.5" />
-                              </button>
-                              {hasPermission('finances:delete') && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteExpense(exp.id)}
-                                  className="p-1 hover:bg-slate-800 text-rose-500 hover:text-rose-455 rounded cursor-pointer transition-colors inline-block"
-                                  title={t('finances.deleteExpenseTooltip')}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="">
+                    <AdvancedTable 
+                      data={filteredExpenses}
+                      columns={expensesColumns}
+                      enablePagination={true}
+                      defaultPageSize={10}
+                    />
                   </div>
                 )}
               </div>
@@ -2266,76 +2706,13 @@ export default function Finances() {
                 }
 
                 return (
-                  <div className="overflow-x-auto">
-                    <table className={`${language === 'ar' ? 'text-right' : 'text-left'} w-full border-collapse`}>
-                      <thead>
-                        <tr className="border-b border-slate-800/60 bg-slate-955/20 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                          <th className="px-6 py-4">{t('finances.studentCol')}</th>
-                          <th className="px-6 py-4">{t('finances.courseCol')}</th>
-                          <th className="px-6 py-4">{t('finances.tuitionPrice')}</th>
-                          <th className="px-6 py-4">{t('finances.amountCol')}</th>
-                          <th className="px-6 py-4">{t('finances.outstandingDue')}</th>
-                          <th className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4`}>{t('finances.action')}</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800/30 text-xs text-slate-355">
-                        {filteredUnpaid.map((item, idx) => (
-                          <tr key={`${item.student.id}-${item.course.id}-${idx}`} className="hover:bg-slate-900/40 transition-colors">
-                            <td className="px-6 py-4 font-semibold text-slate-200">{item.student.full_name}</td>
-                            <td className="px-6 py-4 text-slate-300 font-semibold">
-                              <div>
-                                <p>{item.course.title}</p>
-                                {item.unpaidMonths && item.unpaidMonths.length > 0 && (
-                                  <p className="text-[9.5px] text-rose-400 font-semibold mt-0.5 animate-pulse">
-                                    {t('finances.pending')}: {item.unpaidMonths.map(m => `${translateMonth(m.month)} ${m.year}`).join(', ')}
-                                  </p>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 font-mono font-semibold text-slate-400">{item.totalTuition.toFixed(2)} DA</td>
-                            <td className="px-6 py-4 font-mono font-semibold text-emerald-440">{item.totalPaid.toFixed(2)} DA</td>
-                            <td className="px-6 py-4">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/20 text-[10px] font-bold text-rose-455 font-mono">
-                                {item.balance.toFixed(2)} DA
-                              </span>
-                            </td>
-                            <td className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4`}>
-                              <button
-                                onClick={() => {
-                                  setSelectedPayment(null)
-                                  const today = new Date();
-                                  const yyyymmdd = today.getFullYear() + String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0');
-                                  const rand = Math.floor(1000 + Math.random() * 9000);
-                                  setPaymentForm({
-                                    StudentId: item.student.id.toString(),
-                                    CourseId: item.course.id.toString(),
-                                    amount: item.unpaidMonths && item.unpaidMonths.length > 0 ? item.unpaidMonths[0].due.toString() : item.balance.toString(),
-                                    receipt_number: `RCPT-${yyyymmdd}-${rand}`,
-                                    payment_method: 'Cash',
-                                    month: item.unpaidMonths && item.unpaidMonths.length > 0 ? item.unpaidMonths[0].month : '',
-                                    year: item.unpaidMonths && item.unpaidMonths.length > 0 ? item.unpaidMonths[0].year.toString() : ''
-                                  });
-                                  setPaymentErrors({});
-                                  setActiveTab('payments');
-                                  setIsRecordPaymentModalOpen(true);
-                                }}
-                                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 border border-blue-500/20 text-white rounded-lg text-[10px] font-semibold transition-colors cursor-pointer"
-                              >
-                                {t('finances.recordPayment')}
-                              </button>
-
-                              <button
-                                onClick={() => handleSendPaymentReminder(item)}
-                                title={language === 'ar' ? 'إرسال تذكير بالدفع لولي الأمر' : 'Send payment reminder email to parent'}
-                                className="px-2 py-1.5 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer ml-1.5 inline-flex items-center justify-center"
-                              >
-                                <Mail className="h-3.5 w-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="">
+                    <AdvancedTable 
+                      data={filteredUnpaid}
+                      columns={unpaidColumns}
+                      enablePagination={true}
+                      defaultPageSize={10}
+                    />
                   </div>
                 );
               })()}
@@ -2432,94 +2809,13 @@ export default function Finances() {
                       <p className="text-xs">{language === 'ar' ? 'لا توجد مستحقات معلقة حالياً! تم دفع رواتب جميع الأساتذة بالكامل.' : 'No pending payouts detected! All instructors have been fully paid for their tutoring sessions.'}</p>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className={`${language === 'ar' ? 'text-right' : 'text-left'} w-full border-collapse`}>
-                        <thead>
-                          <tr className="border-b border-slate-800/60 bg-slate-955/20 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                            <th className="px-6 py-4">{t('finances.teacherCol')}</th>
-                            <th className="px-6 py-4">{t('courses.courseTitleLabel')}</th>
-                            <th className="px-6 py-4">{language === 'ar' ? 'الدورة الشهرية' : 'Monthly Term'}</th>
-                            <th className="px-6 py-4">{language === 'ar' ? 'الرسوم المحصلة' : 'Tuition Collected'}</th>
-                            <th className="px-6 py-4">{language === 'ar' ? 'نسبة المستحقات (%)' : 'Payout Cut (%)'}</th>
-                            <th className="px-6 py-4">{language === 'ar' ? 'الراتب المحتسب' : 'Calculated Payout'}</th>
-                            <th className="px-6 py-4">{language === 'ar' ? 'الأيام المتبقية' : 'Days Left'}</th>
-                            <th className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4 no-print`}>{t('common.actions')}</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/30 text-xs text-slate-350">
-                          {pendingPayouts.map(cycle => {
-                            const estimated = cycle.calculatedPayout !== undefined 
-                              ? cycle.calculatedPayout 
-                              : (cycle.payout_type === 'Fixed' ? cycle.fixed_payout_amount : (cycle.studentPaymentsSum * cycle.defaultPayoutRate) / 100);
-                            
-                            const today = new Date();
-                            today.setHours(0, 0, 0, 0);
-                            
-                            const courseObj = courses.find(c => String(c.id) === String(cycle.courseId));
-                            
-                            let targetDate = null;
-                            if (cycle.month && cycle.month.includes('-')) {
-                              targetDate = parseTermEndDate(cycle.month, cycle.year);
-                            } else if (courseObj && courseObj.createdAt) {
-                              const start = new Date(courseObj.createdAt);
-                              start.setHours(0, 0, 0, 0);
-                              const timeElapsed = today.getTime() - start.getTime();
-                              const elapsedDays = Math.max(0, Math.floor(timeElapsed / (1000 * 60 * 60 * 24)));
-                              const cycleIndex = Math.floor(elapsedDays / 30);
-                              
-                              targetDate = new Date(start);
-                              targetDate.setDate(start.getDate() + (cycleIndex + 1) * 30);
-                            } else {
-                              targetDate = parseTermEndDate(cycle.month, cycle.year);
-                            }
-                            
-                            targetDate.setHours(0, 0, 0, 0);
-                            const timeDiff = targetDate.getTime() - today.getTime();
-                            const daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-
-                            let badgeClass = "bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-sm";
-                            let displayText = language === 'ar' ? `${daysLeft} يوم` : `${daysLeft} days`;
-                            
-                            if (daysLeft <= 0) {
-                              badgeClass = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm";
-                              displayText = language === 'ar' ? 'جاهز للدفع' : 'Ready';
-                            } else if (daysLeft <= 5) {
-                              badgeClass = "bg-rose-500/10 text-rose-455 border border-rose-500/25 shadow-sm";
-                            } else if (daysLeft <= 15) {
-                              badgeClass = "bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-sm";
-                            }
-
-                            return (
-                              <tr key={`${cycle.courseId}-${cycle.month}-${cycle.year}`} className="hover:bg-slate-900/40 transition-colors">
-                                <td className="px-6 py-4 font-semibold text-slate-200">{cycle.teacherName}</td>
-                                <td className="px-6 py-4 text-slate-300">{cycle.courseTitle}</td>
-                                <td className="px-6 py-4 text-slate-400 font-semibold">{translateMonth(cycle.month)} {cycle.year}</td>
-                                <td className="px-6 py-4 font-mono font-bold text-slate-400">{cycle.studentPaymentsSum.toFixed(2)} DA</td>
-                                <td className="px-6 py-4 font-bold text-blue-400 font-mono">
-                                  {cycle.payout_type === 'Fixed'
-                                    ? (language === 'ar' ? 'ثابت (شهري)' : 'Fixed (Monthly)')
-                                    : `${cycle.defaultPayoutRate}%`
-                                  }
-                                </td>
-                                <td className="px-6 py-4 font-mono font-extrabold text-emerald-400">{estimated.toFixed(2)} DA</td>
-                                <td className="px-6 py-4">
-                                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold ${badgeClass}`}>
-                                    {displayText}
-                                  </span>
-                                </td>
-                                <td className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4 no-print`}>
-                                  <button
-                                    onClick={() => handlePayInstructorFromPending(cycle)}
-                                    className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/25 hover:bg-emerald-600 text-emerald-450 hover:text-white rounded-xl text-[10px] font-semibold transition-all cursor-pointer shadow-sm hover:shadow-emerald-500/10"
-                                  >
-                                    {language === 'ar' ? 'دفع' : 'Pay'}
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                    <div className="">
+                      <AdvancedTable 
+                        data={pendingPayouts}
+                        columns={pendingPayoutsColumns}
+                        enablePagination={true}
+                        defaultPageSize={10}
+                      />
                     </div>
                   )
                 ) : teacherPayments.length === 0 ? (
@@ -2529,62 +2825,13 @@ export default function Finances() {
                   </div>
                 ) : (
                   /* RECORDED PAYOUTS TABLE */
-                  <div className="overflow-x-auto">
-                    <table className={`${language === 'ar' ? 'text-right' : 'text-left'} w-full border-collapse`}>
-                      <thead>
-                        <tr className="border-b border-slate-800/60 bg-slate-955/20 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                          <th className="px-6 py-4">{t('finances.receiptNoCol')}</th>
-                          <th className="px-6 py-4">{t('finances.teacherCol')}</th>
-                          <th className="px-6 py-4">{t('finances.courseCol')}</th>
-                          <th className="px-6 py-4">{language === 'ar' ? 'الدورة الشهرية' : 'Monthly Term'}</th>
-                          <th className="px-6 py-4">{t('finances.methodCol')}</th>
-                          <th className="px-6 py-4">{language === 'ar' ? 'المبلغ المصروف' : 'Amount Paid'}</th>
-                          <th className="px-6 py-4">{t('finances.dateCol')}</th>
-                          <th className={`${language === 'ar' ? 'text-left' : 'text-right'} px-6 py-4 no-print`}>{t('common.actions')}</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800/30 text-xs text-slate-300">
-                        {teacherPayments.map(pay => (
-                          <tr key={pay.id} className="hover:bg-slate-900/40 transition-colors">
-                            <td className="px-6 py-4 font-mono text-[10px] text-slate-500">{pay.receipt_number}</td>
-                            <td className="px-6 py-4 font-semibold text-slate-200">
-                              <span>{pay.Teacher?.full_name || `Instructor ID: ${pay.TeacherId}`}</span>
-                            </td>
-                            <td className="px-6 py-4 text-slate-300">
-                              {pay.Course?.title || (language === 'ar' ? 'عام / غير محدد' : 'General / Unassigned')}
-                            </td>
-                            <td className="px-6 py-4 text-slate-300 font-semibold">{translateMonth(pay.month)} {pay.year}</td>
-                            <td className="px-6 py-4">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide bg-blue-500/10 border border-blue-500/20 text-blue-400">
-                                {pay.payment_method || 'Cash'}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 font-bold text-emerald-455 font-mono">{pay.amount.toFixed(2)} DA</td>
-                            <td className="px-6 py-4 text-slate-500">{formatTxDate(pay.date)}</td>
-                            <td className={`${language === 'ar' ? 'text-left' : 'text-right'} ${language === 'ar' ? 'space-x-reverse space-x-2' : 'space-x-2'} px-6 py-4 no-print`}>
-                              <button
-                                type="button"
-                                onClick={() => setActivePrintTeacherPayment(pay)}
-                                className="p-1 hover:bg-slate-800 text-blue-400 hover:text-blue-300 rounded cursor-pointer transition-colors inline-block"
-                                title={t('finances.printSalaryTooltip')}
-                              >
-                                <Printer className="h-3.5 w-3.5" />
-                              </button>
-                              {hasPermission('finances:delete') && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteTeacherPayment(pay.id)}
-                                  className="p-1 hover:bg-slate-800 text-rose-500 hover:text-rose-455 rounded cursor-pointer transition-colors inline-block"
-                                  title={t('finances.deleteSalaryTooltip') || 'Delete Payout'}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="">
+                    <AdvancedTable 
+                      data={teacherPayments}
+                      columns={recordedPayoutsColumns}
+                      enablePagination={true}
+                      defaultPageSize={10}
+                    />
                   </div>
                 )}
               </div>
@@ -2769,6 +3016,23 @@ export default function Finances() {
                         const displayBalance = selectedPayment ? balanceInfo.balance + editAmount : balanceInfo.balance;
                         
                         const stats = getStudentCourseAttendanceStats(student, courseId);
+                        
+                        // Live calculation based on input amount
+                        const currentInput = parseFloat(paymentForm.amount) || 0;
+                        const liveBalance = Math.max(0, displayBalance - currentInput);
+                        const livePaid = displayPaid + currentInput;
+                        
+                        let liveRemainingSessions = stats?.remaining || 0;
+                        let livePaidSessions = stats?.paid || 0;
+                        
+                        if (stats) {
+                          const monthlyPrice = student.Courses?.find(c => c.id === courseId)?.price || 0;
+                          const schedulesPerWeek = student.Courses?.find(c => c.id === courseId)?.Schedules?.length || 2;
+                          const sessionsPerMonth = schedulesPerWeek * 4;
+                          livePaidSessions = monthlyPrice > 0 ? Math.floor((livePaid / monthlyPrice) * sessionsPerMonth) : 0;
+                          liveRemainingSessions = livePaidSessions - stats.attended;
+                        }
+
                         return (
                           <div className="space-y-1.5 p-3 bg-slate-955/60 border border-slate-850 rounded-xl text-xs animate-fade-in text-left">
                             <div className="flex justify-between items-center text-slate-400">
@@ -2776,34 +3040,32 @@ export default function Finances() {
                               <span className="font-mono text-slate-200 font-semibold">{balanceInfo.totalTuition.toFixed(2)} DA</span>
                             </div>
                             <div className="flex justify-between items-center text-slate-400">
-                              <span>{language === 'ar' ? 'المبلغ المدفوع سابقًا:' : 'Already Paid'}{selectedPayment ? (language === 'ar' ? ' (باستثناء هذا)' : ' (Excluding this)') : ''}:</span>
-                              <span className="font-mono text-emerald-455 font-semibold">{displayPaid.toFixed(2)} DA</span>
+                              <span>{language === 'ar' ? 'المدفوع سابقاً:' : 'Previously Paid'}:</span>
+                              <span className="font-mono text-slate-300 font-semibold">{displayPaid.toFixed(2)} DA</span>
                             </div>
-                            {selectedPayment && (
-                              <div className="flex justify-between items-center text-slate-400">
-                                <span>{language === 'ar' ? 'قيمة الدفعة الحالية:' : 'Current Payment Amount:'}</span>
-                                <span className="font-mono text-blue-400 font-semibold">{editAmount.toFixed(2)} DA</span>
-                              </div>
-                            )}
+                            <div className="flex justify-between items-center text-slate-400">
+                              <span className="text-emerald-500/80">{language === 'ar' ? 'إجمالي المدفوع (مباشر):' : 'Total Paid (Live):'}</span>
+                              <span className="font-mono text-emerald-455 font-bold">{livePaid.toFixed(2)} DA</span>
+                            </div>
                             {stats && (
                               <div className="flex justify-between items-center text-slate-400">
-                                <span>{language === 'ar' ? 'الحصص المتبقية:' : 'Remaining Paid Sessions:'}</span>
-                                <span className={`font-mono font-bold px-1.5 py-0.2 rounded text-[10px] ${
-                                  stats.remaining <= 1
+                                <span className="text-blue-400/80">{language === 'ar' ? 'الحصص المتبقية (مباشر):' : 'Remaining Paid Sessions (Live):'}</span>
+                                <span className={`font-mono font-bold px-1.5 py-0.2 rounded text-[10px] transition-colors ${
+                                  liveRemainingSessions <= 1
                                     ? 'bg-rose-500/10 text-rose-400'
-                                    : stats.remaining <= 3
+                                    : liveRemainingSessions <= 3
                                     ? 'bg-amber-500/10 text-amber-400'
                                     : 'bg-emerald-500/10 text-emerald-400'
                                 }`}>
-                                  {stats.remaining} {language === 'ar' ? 'حصص متبقية' : 'sessions left'} ({stats.attended} / {stats.paid} {language === 'ar' ? 'مستهلكة' : 'consumed'})
+                                  {liveRemainingSessions} {language === 'ar' ? 'حصص متبقية' : 'sessions left'} ({stats.attended} / {livePaidSessions} {language === 'ar' ? 'مستهلكة' : 'consumed'})
                                 </span>
                               </div>
                             )}
                             <div className="border-t border-slate-800/85 my-1"></div>
                             <div className="flex justify-between items-center">
-                              <span className="font-medium text-slate-350">{language === 'ar' ? 'الرصيد المتبقي:' : 'Remaining Balance:'}</span>
-                              <span className={`font-mono font-bold ${displayBalance > 0 ? 'text-rose-455' : 'text-emerald-450'}`}>
-                                {displayBalance.toFixed(2)} DA
+                              <span className="font-medium text-slate-350">{language === 'ar' ? 'الرصيد المتبقي (مباشر):' : 'Remaining Balance (Live):'}</span>
+                              <span className={`font-mono font-bold transition-colors ${liveBalance > 0 ? 'text-rose-455' : 'text-emerald-450'}`}>
+                                {liveBalance.toFixed(2)} DA
                               </span>
                             </div>
                           </div>

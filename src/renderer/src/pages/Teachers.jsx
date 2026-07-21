@@ -350,7 +350,7 @@ export default function Teachers() {
 
   return (
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-xs uppercase shrink-0 animate-fade-in">
+            <div className="h-9 w-9 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-xs uppercase shrink-0">
               {teacher.full_name ? teacher.full_name.charAt(0) : 'T'}
             </div>
             <span className="font-bold text-slate-100 truncate">{teacher.full_name}</span>
@@ -372,6 +372,7 @@ export default function Teachers() {
     },
     {
       id: 'courses',
+      accessorFn: teacher => teacher.Courses ? teacher.Courses.length : 0,
       header: t('students.coursesCol'),
       cell: info => {
         const teacher = info.row.original;

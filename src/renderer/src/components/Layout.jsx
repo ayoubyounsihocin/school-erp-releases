@@ -424,8 +424,7 @@ export default function Layout({ user, onLogout, theme, toggleTheme }) {
     setLoadingNotifications(true)
     try {
       if (window.api) {
-        const [logsResult, studentsData, teachersData, coursesData, schedulesData, paymentsData, teacherPaymentsData, absencesData] = await Promise.all([
-          ipcService.getAuditLogs({ limit: 30, offset: 0 }),
+        const [studentsData, teachersData, coursesData, schedulesData, paymentsData, teacherPaymentsData, absencesData] = await Promise.all([
           ipcService.getStudents(),
           ipcService.getTeachers(),
           ipcService.getCourses(),
@@ -435,8 +434,7 @@ export default function Layout({ user, onLogout, theme, toggleTheme }) {
           ipcService.getAbsences()
         ]);
 
-        const logsList = Array.isArray(logsResult) ? logsResult : (logsResult.logs || []);
-        setAuditLogs(logsList);
+        setAuditLogs([]);
 
         const list = [];
 
@@ -853,8 +851,8 @@ export default function Layout({ user, onLogout, theme, toggleTheme }) {
                 className={`relative p-2 bg-slate-900/60 border border-slate-800/60 rounded-xl text-slate-400 hover:text-slate-200 transition-colors cursor-pointer ${isNotificationOpen ? 'text-slate-200 bg-slate-800/40 border-slate-700' : ''}`}
               >
                 <Bell className="h-4 w-4" />
-                {(auditLogs.length > 0 || alerts.length > 0) && (
-                  <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+                {alerts.length > 0 && (
+                  <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                 )}
               </button>
 
@@ -867,9 +865,9 @@ export default function Layout({ user, onLogout, theme, toggleTheme }) {
                   <div className="flex items-center justify-between pb-2 border-b border-slate-800/60">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-slate-100">{t('layout.notifications')}</span>
-                      {(auditLogs.length > 0 || alerts.length > 0) && (
-                        <span className="text-[9px] bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded-full font-black font-mono">
-                          {auditLogs.length + alerts.length}
+                      {alerts.length > 0 && (
+                        <span className="text-[9px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded-full font-black font-mono">
+                          {alerts.length}
                         </span>
                       )}
                     </div>
@@ -892,79 +890,42 @@ export default function Layout({ user, onLogout, theme, toggleTheme }) {
                     </div>
                   </div>
 
-                  {/* Category Switch Tabs */}
-                  <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-850">
-                    <button 
-                      onClick={() => setActiveCategory('logs')}
-                      className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${activeCategory === 'logs' ? 'bg-slate-900 border border-slate-800 text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-350 border-transparent'}`}
-                    >
-                      {language === 'ar' ? 'سجل العمليات' : 'System Logs'} ({auditLogs.length})
-                    </button>
-                    <button 
-                      onClick={() => setActiveCategory('keep-eyes')}
-                      className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${activeCategory === 'keep-eyes' ? 'bg-slate-900 border border-slate-800 text-amber-400 shadow-sm' : 'text-slate-500 hover:text-slate-350 border-transparent'}`}
-                    >
-                      {language === 'ar' ? 'تنبيهات المراقبة' : 'Alerts'} ({alerts.length})
-                    </button>
-                  </div>
-
                   {/* Content Scroll Area */}
                   <div className="max-h-72 overflow-y-auto space-y-2 pr-1 scrollbar-thin font-sans">
-                    {loadingNotifications && auditLogs.length === 0 && alerts.length === 0 ? (
+                    {loadingNotifications && alerts.length === 0 ? (
                       <div className="text-center py-10 text-slate-500 text-[10px] font-medium flex items-center justify-center gap-2">
                         <RefreshCw className="h-3.5 w-3.5 animate-spin text-blue-500" />
                         {t('layout.fetchingNotifications')}
                       </div>
-                    ) : activeCategory === 'logs' ? (
-                      auditLogs.length === 0 ? (
-                        <div className="text-center py-10 text-slate-500 text-[10px] font-bold uppercase tracking-wider">
-                          {t('layout.noActivityLogs')}
-                        </div>
-                      ) : (
-                        auditLogs.slice(0, 15).map(log => (
-                          <div key={log.id} className="flex gap-2.5 items-start p-2.5 bg-slate-955/20 border border-slate-850/30 hover:border-slate-800/80 hover:bg-slate-850/20 rounded-xl transition-all duration-200 text-right">
-                            <div className={`p-2 rounded-xl border shrink-0 mt-0.5 ${getLogIconBg(log.action)}`}>
-                              {getLogIcon(log.action)}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[10px] font-bold text-slate-200 leading-snug">{formatLogAction(log.action, language)}</p>
-                              <p className="text-[9px] text-slate-400 leading-relaxed mt-0.5">{log.description}</p>
-                              <span className="text-[8px] text-slate-500 font-semibold font-mono mt-1.5 block">{formatTimeAgo(log.createdAt)}</span>
-                            </div>
-                          </div>
-                        ))
-                      )
+                    ) : alerts.length === 0 ? (
+                      <div className="text-center py-10 text-slate-500 text-[10px] flex flex-col items-center justify-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span className="text-emerald-400 font-bold tracking-wider">{t('layout.allSettled') || 'ALL SETTLED'}</span>
+                      </div>
                     ) : (
-                      alerts.length === 0 ? (
-                        <div className="text-center py-10 text-slate-500 text-[10px] flex flex-col items-center justify-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                          <span className="text-emerald-400 font-bold tracking-wider">{t('layout.allSettled') || 'ALL SETTLED'}</span>
-                        </div>
-                      ) : (
-                        alerts.map((alertItem, idx) => (
-                          <div key={alertItem.id || idx} className="flex gap-2.5 items-start p-2.5 bg-slate-955/20 border border-slate-850/40 rounded-xl hover:border-slate-800/70 transition-all duration-200 text-right">
-                            <span className="mt-1 shrink-0">
-                              {alertItem.severity === 'high' ? (
-                                <AlertTriangle className="h-4 w-4 text-rose-500" />
-                              ) : (
-                                <AlertCircle className="h-4 w-4 text-amber-500" />
-                              )}
+                      alerts.map((alertItem, idx) => (
+                        <div key={alertItem.id || idx} className="flex gap-2.5 items-start p-2.5 bg-slate-955/20 border border-slate-850/40 rounded-xl hover:border-slate-800/70 transition-all duration-200 text-right">
+                          <span className="mt-1 shrink-0">
+                            {alertItem.severity === 'high' ? (
+                              <AlertTriangle className="h-4 w-4 text-rose-500" />
+                            ) : (
+                              <AlertCircle className="h-4 w-4 text-amber-500" />
+                            )}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded font-mono tracking-wider border ${
+                              alertItem.type === 'student' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                              alertItem.type === 'teacher' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                              'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                            }`}>
+                              {language === 'ar' 
+                                ? (alertItem.type === 'student' ? 'طالب' : alertItem.type === 'teacher' ? 'أستاذ' : 'نظام')
+                                : alertItem.type}
                             </span>
-                            <div className="min-w-0 flex-1">
-                              <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded font-mono tracking-wider border ${
-                                alertItem.type === 'student' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
-                                alertItem.type === 'teacher' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                                'bg-purple-500/10 text-purple-400 border-purple-500/20'
-                              }`}>
-                                {language === 'ar' 
-                                  ? (alertItem.type === 'student' ? 'طالب' : alertItem.type === 'teacher' ? 'أستاذ' : 'نظام')
-                                  : alertItem.type}
-                              </span>
-                              <p className="text-[9.5px] text-slate-300 leading-relaxed mt-1.5 font-semibold">{alertItem.text}</p>
-                            </div>
+                            <p className="text-[9.5px] text-slate-300 leading-relaxed mt-1.5 font-semibold">{alertItem.text}</p>
                           </div>
-                        ))
-                      )
+                        </div>
+                      ))
                     )}
                   </div>
                 </div>

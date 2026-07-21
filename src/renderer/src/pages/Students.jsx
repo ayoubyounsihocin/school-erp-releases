@@ -1133,7 +1133,7 @@ export default function Students() {
         const student = info.row.original;
         return (
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-xs uppercase shrink-0 animate-fade-in">
+            <div className="h-9 w-9 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-xs uppercase shrink-0">
               {student.full_name ? student.full_name.charAt(0) : 'S'}
             </div>
             <div className="space-y-0.5 min-w-0">
@@ -1188,6 +1188,7 @@ export default function Students() {
     },
     {
       id: 'courses',
+      accessorFn: student => student.Courses && student.Courses.length > 0 ? student.Courses[0].title : '',
       header: t('students.coursesCol'),
       cell: info => {
         const student = info.row.original;
@@ -1200,7 +1201,7 @@ export default function Students() {
                 return (
                   <div className="space-y-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-950 border border-slate-850 text-[9px] text-slate-300 font-semibold">
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-955 border border-slate-850 text-[9px] text-slate-300 font-semibold">
                         {c.title}
                       </span>
                       <span className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border ${
@@ -1208,7 +1209,7 @@ export default function Students() {
                           ? 'bg-rose-500/10 border-rose-500/25 text-rose-700 dark:text-rose-400 shadow-sm animate-pulse'
                           : stats.remaining <= 3
                           ? 'bg-amber-500/10 border-amber-500/25 text-amber-700 dark:text-amber-400'
-                          : 'bg-slate-100 dark:bg-slate-950 border-slate-200 dark:border-slate-850 text-slate-700 dark:text-slate-400'
+                          : 'bg-slate-100 dark:bg-slate-955 border-slate-200 dark:border-slate-850 text-slate-700 dark:text-slate-400'
                       }`}>
                         {stats.attended}/{stats.paid}
                       </span>
@@ -1234,6 +1235,14 @@ export default function Students() {
     },
     {
       id: 'balance',
+      accessorFn: student => {
+        if (student.Courses && student.Courses.length > 0) {
+          const c = student.Courses[0];
+          const balanceInfo = getCoursePaymentsBalance(student, c.id);
+          return balanceInfo.balance;
+        }
+        return 0;
+      },
       header: t('students.balanceCol'),
       cell: info => {
         const student = info.row.original;
@@ -1357,7 +1366,7 @@ export default function Students() {
       },
       size: 240
     }
-  ], [language, rowSelection]);
+  ], [language, rowSelection, allAbsences, hasPermission]);
 
   // Input changes
   const handleInputChange = (e) => {

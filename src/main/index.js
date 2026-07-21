@@ -1308,12 +1308,13 @@ app.whenReady().then(async () => {
       return [];
     }
   });
-  ipcMain.handle('get-audit-logs', async (event, { limit = 50, offset = 0 } = {}) => {
+  ipcMain.handle('get-audit-logs', async (event, { limit = 200, offset = 0 } = {}) => {
     try {
       const { count, rows } = await AuditLog.findAndCountAll({
         order: [['createdAt', 'DESC']],
         limit,
-        offset
+        offset,
+        include: [{ model: User, attributes: ['id', 'username', 'role', 'avatar'] }]
       });
       return {
         logs: rows.map(l => l.toJSON()),
