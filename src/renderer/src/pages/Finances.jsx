@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useLanguage } from '../i18n'
 import AdvancedTable from '../components/AdvancedTable'
+import PageHelpModal from '../components/PageHelpModal'
 import { DollarSign,ArrowUpRight,ArrowDownRight,Plus,RefreshCw,AlertCircle,Receipt,Tag,FileText,User,CreditCard,Search,X,Edit,Trash2,Printer,Download,Mail,Check } from 'lucide-react'
 import { ipcService } from '../services/ipcService'
 import { 
@@ -2263,7 +2264,10 @@ export default function Finances() {
       {/* Top Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white">{t('finances.title')}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold tracking-tight text-white">{t('finances.title')}</h1>
+            <PageHelpModal pageKey="finances" />
+          </div>
           <p className="text-xs text-slate-400">{t('finances.subtitle')}</p>
         </div>
         <button onClick={loadFinancialData} disabled={loading}

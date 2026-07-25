@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useLanguage } from '../i18n'
 import { useSearchParams } from 'react-router-dom'
-import { Shield, Monitor, Save, UserPlus, Trash2, User, Users, Lock, RefreshCw, Key, Database, Download, Upload, X, School, Phone, MapPin, Mail, Globe, Calendar, Sliders, FileText, Activity, CreditCard, BookOpen, GraduationCap, ShoppingCart, Search, Filter } from 'lucide-react'
+import { Shield, Monitor, Save, UserPlus, Trash2, User, Users, Lock, RefreshCw, Key, Database, Download, Upload, X, School, Phone, MapPin, Mail, Globe, Calendar, Sliders, FileText, Activity, CreditCard, BookOpen, GraduationCap, ShoppingCart, Search, Filter, Eye, EyeOff } from 'lucide-react'
 import AdvancedTable from '../components/AdvancedTable'
+import PageHelpModal from '../components/PageHelpModal'
 import { ipcService } from '../services/ipcService'
 
 export default function Settings({ currentUser, onUserUpdate }) {
@@ -261,6 +262,10 @@ export default function Settings({ currentUser, onUserUpdate }) {
   const [profileAvatar, setProfileAvatar] = useState(currentUser?.avatar || '')
   const [oldPassword, setOldPassword] = useState('')
   const [changeNewPassword, setChangeNewPassword] = useState('')
+  const [showOldPassword, setShowOldPassword] = useState(false)
+  const [showChangeNewPassword, setShowChangeNewPassword] = useState(false)
+  const [showNewUserPassword, setShowNewUserPassword] = useState(false)
+  const [showSmtpPassword, setShowSmtpPassword] = useState(false)
   const [passwordErrors, setPasswordErrors] = useState({})
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -868,9 +873,12 @@ export default function Settings({ currentUser, onUserUpdate }) {
         {/* Modern SaaS Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-800/40 pb-5 text-start">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-white bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-              {t('settings.title')}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold tracking-tight text-white bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+                {t('settings.title')}
+              </h1>
+              <PageHelpModal pageKey="settings" />
+            </div>
             <p className="text-xs text-slate-400 mt-1">{t('settings.subtitle')}</p>
           </div>
         </div>
@@ -1322,15 +1330,22 @@ export default function Settings({ currentUser, onUserUpdate }) {
                           <div className="relative">
                             <Lock className={`absolute ${language === 'ar' ? 'right-3.5' : 'left-3.5'} top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500`} />
                             <input
-                              type="password"
+                              type={showOldPassword ? "text" : "password"}
                               value={oldPassword}
                               onChange={(e) => {
                                 setOldPassword(e.target.value)
                                 if (passwordErrors.oldPassword) setPasswordErrors(prev => ({ ...prev, oldPassword: '' }))
                               }}
                               placeholder={t('settings.oldPasswordPlaceholder')}
-                              className={`w-full ${language === 'ar' ? 'pr-10 pl-4 text-right' : 'pl-10 pr-4 text-left'} py-2.5 bg-slate-955 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-655 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold`}
+                              className={`w-full ${language === 'ar' ? 'pr-10 pl-10 text-right' : 'pl-10 pr-10 text-left'} py-2.5 bg-slate-955 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-655 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold`}
                             />
+                            <button
+                              type="button"
+                              onClick={() => setShowOldPassword(!showOldPassword)}
+                              className={`absolute ${language === 'ar' ? 'left-3.5' : 'right-3.5'} top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer`}
+                            >
+                              {showOldPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
                           </div>
                           {passwordErrors.oldPassword && <span className="text-[9px] text-rose-450 font-semibold">{passwordErrors.oldPassword}</span>}
                         </div>
@@ -1340,15 +1355,22 @@ export default function Settings({ currentUser, onUserUpdate }) {
                           <div className="relative">
                             <Lock className={`absolute ${language === 'ar' ? 'right-3.5' : 'left-3.5'} top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500`} />
                             <input
-                              type="password"
+                              type={showChangeNewPassword ? "text" : "password"}
                               value={changeNewPassword}
                               onChange={(e) => {
                                 setChangeNewPassword(e.target.value)
                                 if (passwordErrors.newPassword) setPasswordErrors(prev => ({ ...prev, newPassword: '' }))
                               }}
                               placeholder={t('settings.newPasswordPlaceholder')}
-                              className={`w-full ${language === 'ar' ? 'pr-10 pl-4 text-right' : 'pl-10 pr-4 text-left'} py-2.5 bg-slate-955 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-655 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold`}
+                              className={`w-full ${language === 'ar' ? 'pr-10 pl-10 text-right' : 'pl-10 pr-10 text-left'} py-2.5 bg-slate-955 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-655 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold`}
                             />
+                            <button
+                              type="button"
+                              onClick={() => setShowChangeNewPassword(!showChangeNewPassword)}
+                              className={`absolute ${language === 'ar' ? 'left-3.5' : 'right-3.5'} top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer`}
+                            >
+                              {showChangeNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
                           </div>
                           {passwordErrors.newPassword && <span className="text-[9px] text-rose-450 font-semibold">{passwordErrors.newPassword}</span>}
                         </div>
@@ -1430,12 +1452,19 @@ export default function Settings({ currentUser, onUserUpdate }) {
                           <div className="relative">
                             <Lock className={`absolute ${language === 'ar' ? 'right-3.5' : 'left-3.5'} top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500`} />
                             <input
-                              type="password"
+                              type={showNewUserPassword ? "text" : "password"}
                               value={newPassword}
                               onChange={(e) => setNewPassword(e.target.value)}
                               placeholder="••••••••"
-                              className={`w-full ${language === 'ar' ? 'pr-10 pl-4 text-right' : 'pl-10 pr-4 text-left'} py-2.5 bg-slate-955 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-655 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold`}
+                              className={`w-full ${language === 'ar' ? 'pr-10 pl-10 text-right' : 'pl-10 pr-10 text-left'} py-2.5 bg-slate-955 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-655 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold`}
                             />
+                            <button
+                              type="button"
+                              onClick={() => setShowNewUserPassword(!showNewUserPassword)}
+                              className={`absolute ${language === 'ar' ? 'left-3.5' : 'right-3.5'} top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer`}
+                            >
+                              {showNewUserPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
                           </div>
                           {userErrors.password && <span className="text-[9px] text-rose-450 font-semibold">{userErrors.password}</span>}
                         </div>
@@ -1846,13 +1875,22 @@ export default function Settings({ currentUser, onUserUpdate }) {
                         <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">
                           {language === 'ar' ? 'كلمة مرور التطبيق (App Password)' : 'App Password'}
                         </label>
-                        <input
-                          type="password"
-                          value={smtpPassword}
-                          onChange={(e) => setSmtpPassword(e.target.value)}
-                          placeholder="••••••••••••••••"
-                          className="w-full px-4 py-2.5 bg-slate-955/45 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold font-mono"
-                        />
+                        <div className="relative">
+                          <input
+                            type={showSmtpPassword ? "text" : "password"}
+                            value={smtpPassword}
+                            onChange={(e) => setSmtpPassword(e.target.value)}
+                            placeholder="••••••••••••••••"
+                            className={`w-full ${language === 'ar' ? 'pl-10 pr-4 text-right' : 'pr-10 pl-4 text-left'} py-2.5 bg-slate-955/45 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold font-mono`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowSmtpPassword(!showSmtpPassword)}
+                            className={`absolute ${language === 'ar' ? 'left-3.5' : 'right-3.5'} top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer`}
+                          >
+                            {showSmtpPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
                       </div>
                     </div>
 

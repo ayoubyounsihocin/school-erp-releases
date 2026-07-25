@@ -5,6 +5,7 @@ import { UserCheck, UserPlus, Phone, Mail, Award, AlertCircle, RefreshCw, Search
 import { ipcService } from '../services/ipcService'
 import AdvancedTable from '../components/AdvancedTable'
 import SkeletonLoader from '../components/SkeletonLoader'
+import PageHelpModal from '../components/PageHelpModal'
 import { exportToExcel } from '../utils/excelExport'
 
 const CustomCheckbox = ({ checked, onChange, disabled }) => {
@@ -634,7 +635,10 @@ export default function Teachers() {
       {/* Top Banner section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white">{t('teachers.title')}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold tracking-tight text-white">{t('teachers.title')}</h1>
+            <PageHelpModal pageKey="teachers" />
+          </div>
           <p className="text-xs text-slate-400">{t('teachers.subtitle')}</p>
         </div>
         <div className="flex items-center gap-3">

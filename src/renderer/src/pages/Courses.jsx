@@ -4,6 +4,7 @@ import { BookOpen, Tag, Plus, RefreshCw, AlertCircle, User, BookOpenCheck, Edit,
 import { ipcService } from '../services/ipcService'
 import { toLocalYYYYMMDD } from '../utils/billing'
 import CustomDatePicker from '../components/CustomDatePicker'
+import PageHelpModal from '../components/PageHelpModal'
 import { TEACHER_PRINT_STYLES } from '../utils/printStyles'
 
 export default function Courses() {
@@ -998,7 +999,10 @@ export default function Courses() {
       {/* Page Header */}
       <div className="no-print flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white">{t('courses.title')}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold tracking-tight text-white">{t('courses.title')}</h1>
+            <PageHelpModal pageKey="courses" />
+          </div>
           <p className="text-xs text-slate-400">{t('courses.subtitle')}</p>
         </div>
         <div className="flex items-center gap-3">

@@ -88,6 +88,8 @@ export const ipcService = {
 
   // Authentication
   login: (username, password) => api.login ? api.login(username, password) : Promise.resolve({ error: 'IPC Offline' }),
+  checkUserSetup: () => api.checkUserSetup ? api.checkUserSetup() : Promise.resolve({ needsSetup: false, isDefaultAdmin: false }),
+  setupInitialAdmin: (data) => api.setupInitialAdmin ? api.setupInitialAdmin(data) : Promise.resolve({ error: 'IPC Offline' }),
   updatePassword: (username, oldPassword, newPassword) => api.updatePassword ? api.updatePassword(username, oldPassword, newPassword) : Promise.resolve({ error: 'IPC Offline' }),
   updateUserProfile: (data) => api.updateUserProfile ? api.updateUserProfile(data) : Promise.resolve({ error: 'IPC Offline' }),
   getUsers: () => api.getUsers ? api.getUsers() : Promise.resolve([]),

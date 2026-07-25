@@ -45,7 +45,7 @@ function createWindow() {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 480,
-    height: 480,
+    height: 540,
     show: false,
     frame: false, // Make window frameless
     transparent: false, // Make window background opaque
@@ -125,9 +125,9 @@ function createWindow() {
     if (mainWindow) {
       if (mainWindow.isMaximized()) mainWindow.unmaximize();
       mainWindow.setResizable(true);
-      mainWindow.setMinimumSize(480, 480);
-      mainWindow.setMaximumSize(480, 480);
-      mainWindow.setSize(480, 480);
+      mainWindow.setMinimumSize(480, 540);
+      mainWindow.setMaximumSize(480, 540);
+      mainWindow.setSize(480, 540);
       mainWindow.setResizable(false);
       mainWindow.center();
     }
@@ -418,17 +418,10 @@ app.whenReady().then(async () => {
     await sequelize.query('PRAGMA foreign_keys = ON;');
     console.log("✅ Database synced successfully!");
     
-    // Seed default admin user if none exists
+    // Check if initial admin user setup is needed (Prompt user to set custom username & password on first launch)
     const userCount = await User.count();
     if (userCount === 0) {
-      console.log("🌱 Seeding default admin user (admin / admin)...");
-      const defaultHash = hashPassword('admin');
-      await User.create({
-        username: 'admin',
-        password_hash: defaultHash,
-        role: 'Admin',
-        is_active: true
-      });
+      console.log("🌱 No admin user found. Initial setup prompt active on login screen.");
     }
 
     // Seed default system settings if none exist
@@ -1630,6 +1623,83 @@ app.whenReady().then(async () => {
     } catch (error) {
       console.error('Direct print error:', error);
       return { error: error.message };
+    }
+  });
+
+  ipcMain.handle('check-user-setup', async () => {
+    try {
+      const userCount = await User.count();
+      if (userCount === 0) {
+        return { needsSetup: true, isDefaultAdmin: false };
+      }
+      if (userCount === 1) {
+        const singleUser = await User.findOne();
+        if (singleUser && singleUser.username === 'admin' && verifyPassword('admin', singleUser.password_hash)) {
+          return { needsSetup: false, isDefaultAdmin: true };
+        }
+      }
+      return { needsSetup: false, isDefaultAdmin: false };
+    } catch (error) {
+      console.error("Error checking user setup:", error);
+      return { needsSetup: false, isDefaultAdmin: false };
+    }
+  });
+
+  ipcMain.handle('setup-initial-admin', async (event, { username, password }) => {
+    try {
+      if (!username || !username.trim() || !password || !password.trim()) {
+        return { error: "Username and password are required." };
+      }
+
+      const userCount = await User.count();
+      let adminUser = null;
+
+      if (userCount === 0) {
+        const hash = hashPassword(password);
+        adminUser = await User.create({
+          username: username.trim(),
+          password_hash: hash,
+          role: 'Admin',
+          is_active: true
+        });
+      } else if (userCount === 1) {
+        const singleUser = await User.findOne();
+        if (singleUser && singleUser.username === 'admin' && verifyPassword('admin', singleUser.password_hash)) {
+          const hash = hashPassword(password);
+          await singleUser.update({
+            username: username.trim(),
+            password_hash: hash
+          });
+          adminUser = singleUser;
+        } else {
+          return { error: "An administrator account already exists. Please sign in." };
+        }
+      } else {
+        return { error: "Initial setup has already been completed." };
+      }
+
+      currentSessionUser = {
+        id: adminUser.id,
+        username: adminUser.username,
+        role: adminUser.role,
+        permissions: adminUser.permissions || ''
+      };
+
+      await AuditLog.create({
+        action: 'INITIAL_ADMIN_SETUP',
+        description: `Initial Administrator account configured with username '${adminUser.username}'.`
+      });
+
+      return {
+        id: adminUser.id,
+        username: adminUser.username,
+        role: adminUser.role,
+        avatar: adminUser.avatar,
+        permissions: adminUser.permissions || ''
+      };
+    } catch (error) {
+      console.error("Error setting up initial admin:", error);
+      return { error: error.message || "Failed to set up administrator account." };
     }
   });
 

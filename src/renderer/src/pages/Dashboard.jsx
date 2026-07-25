@@ -3,6 +3,8 @@ import { Users, DollarSign, ArrowDownRight, ArrowUpRight, Activity, Calendar, Re
 import { useLanguage } from '../i18n'
 import { ipcService } from '../services/ipcService'
 
+import PageHelpModal from '../components/PageHelpModal'
+
 export default function Dashboard() {
   const { language, t } = useLanguage()
   const [studentsCount, setStudentsCount] = useState(0)
@@ -302,7 +304,10 @@ export default function Dashboard() {
       {/* Top Welcome Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white">{t('dashboard.title')}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold tracking-tight text-white">{t('dashboard.title')}</h1>
+            <PageHelpModal pageKey="dashboard" />
+          </div>
           <p className="text-xs text-slate-400">{t('dashboard.subtitle')}</p>
         </div>
         <button

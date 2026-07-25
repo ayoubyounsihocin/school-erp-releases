@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function CustomDatePicker({
@@ -46,6 +47,8 @@ export default function CustomDatePicker({
   
   const containerRef = useRef(null);
   const buttonRef = useRef(null);
+  const popoverRef = useRef(null);
+  const [popoverStyle, setPopoverStyle] = useState({});
 
   // Initialize selected date from value
   useEffect(() => {
@@ -70,7 +73,10 @@ export default function CustomDatePicker({
   // Click outside to close
   useEffect(() => {
     function handleClickOutside(event) {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
+      if (
+        containerRef.current && !containerRef.current.contains(event.target) &&
+        (!popoverRef.current || !popoverRef.current.contains(event.target))
+      ) {
         setIsOpen(false);
       }
     }
@@ -81,6 +87,51 @@ export default function CustomDatePicker({
 
 
   const isAr = language === 'ar';
+
+  // Handle position calculation for the Portal
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const updatePosition = () => {
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
+        const style = {
+          top: `${rect.bottom + 6}px`,
+        };
+
+        if (isAr) {
+          let rightPos = window.innerWidth - rect.right;
+          if (rightPos + 280 > window.innerWidth) {
+            rightPos = window.innerWidth - 280 - 16;
+          }
+          style.right = `${rightPos}px`;
+        } else {
+          let leftPos = rect.left;
+          if (leftPos + 280 > window.innerWidth) {
+            leftPos = window.innerWidth - 280 - 16;
+          }
+          style.left = `${leftPos}px`;
+        }
+
+        // Approx popover height is 330px
+        if (rect.bottom + 340 > window.innerHeight && rect.top - 340 > 0) {
+          style.top = `${rect.top - 340}px`;
+        }
+
+        setPopoverStyle(style);
+      }
+    };
+
+    updatePosition();
+    // true to use capture phase to catch scroll events on any scrollable container
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [isOpen, isAr]);
 
   const monthsEN = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -234,9 +285,11 @@ export default function CustomDatePicker({
       </button>
 
       {/* Floating Premium Calendar Popover */}
-      {isOpen && (
-        <div 
-          className={`absolute top-[calc(100%+6px)] ${isAr ? 'right-0' : 'left-0'} z-50 p-4 bg-slate-900 border border-slate-850 rounded-2xl shadow-2xl w-[280px] text-slate-200 animate-scale-in text-start select-none`}
+      {isOpen && createPortal(
+        <div
+          ref={popoverRef}
+          style={popoverStyle}
+          className={`fixed z-[99999] p-4 bg-slate-900 border border-slate-850 rounded-2xl shadow-2xl w-[280px] text-slate-200 animate-scale-in text-start select-none`}
         >
           {/* Header Month / Year Selectors */}
           <div className="flex items-center justify-between gap-1.5 mb-4">
@@ -331,7 +384,8 @@ export default function CustomDatePicker({
               {isAr ? 'تطبيق' : 'Apply'}
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

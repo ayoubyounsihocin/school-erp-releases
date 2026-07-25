@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { User, Lock, AlertCircle, RefreshCw, Eye, EyeOff, X, Sun, Moon, Minus } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { User, Lock, AlertCircle, RefreshCw, Eye, EyeOff, X, Sun, Moon, Minus, ShieldCheck, CheckCircle2 } from 'lucide-react'
 import { useLanguage } from '../i18n'
 import { ipcService } from '../services/ipcService'
 
@@ -7,22 +7,45 @@ export default function Login({ onLogin, theme, toggleTheme }) {
   const { language, setLanguage, t } = useLanguage()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  
+  const [isSetupMode, setIsSetupMode] = useState(false)
+  const [isDefaultAdmin, setIsDefaultAdmin] = useState(false)
+  const [isMandatorySetup, setIsMandatorySetup] = useState(false)
+  
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const inputRef = React.useRef(null)
+  const inputRef = useRef(null)
 
-  React.useEffect(() => {
-    // Force browser-level focus on username input box on screen load
+  useEffect(() => {
+    let isMounted = true;
+    ipcService.checkUserSetup().then(res => {
+      if (!isMounted) return;
+      if (res && res.needsSetup) {
+        setIsSetupMode(true);
+        setIsMandatorySetup(true);
+      } else if (res && res.isDefaultAdmin) {
+        setIsDefaultAdmin(true);
+      }
+    }).catch(err => {
+      console.error("Failed to check user setup status:", err);
+    });
+    return () => { isMounted = false; };
+  }, [])
+
+  useEffect(() => {
+    // Force browser-level focus on username input box on screen load or mode switch
     setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus()
       }
     }, 200)
-  }, [])
+  }, [isSetupMode])
 
-  const handleSubmit = async (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault()
     if (!username.trim() || !password.trim()) {
       setError(t('login.errorFields'))
@@ -56,6 +79,47 @@ export default function Login({ onLogin, theme, toggleTheme }) {
       setLoading(false)
     }
   }
+
+  const handleSetupSubmit = async (e) => {
+    e.preventDefault()
+    if (!username.trim() || !password.trim() || !confirmPassword.trim()) {
+      setError(t('login.errorFields'))
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setError(t('login.passwordMismatch'))
+      return
+    }
+
+    if (password.length < 4) {
+      setError(t('login.passwordMinLength'))
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    try {
+      if (window.api) {
+        const res = await ipcService.setupInitialAdmin({ username: username.trim(), password })
+        if (res && res.error) {
+          setError(res.error)
+        } else if (res) {
+          onLogin(res)
+        }
+      } else {
+        // Fallback for standalone web view testing
+        onLogin({ id: 1, username: username.trim(), role: 'Admin' })
+      }
+    } catch (err) {
+      console.error('Setup error:', err)
+      setError(t('login.errorConnection'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const isRtl = language === 'ar';
 
   return (
     <div className="relative h-full w-full flex items-center justify-center bg-transparent overflow-hidden select-none" dir="ltr">
@@ -106,35 +170,42 @@ export default function Login({ onLogin, theme, toggleTheme }) {
         </div>
 
       {/* Login Card Wrapper */}
-      <div className="w-full max-w-md p-8 bg-slate-955 dark:bg-transparent rounded-3xl relative z-10 animate-fade-in-up">
+      <div className="w-full max-w-md p-6 sm:p-8 bg-slate-955 dark:bg-transparent rounded-3xl relative z-10 animate-fade-in-up">
 
         {/* Branding header */}
-        <div className="flex flex-col items-center text-center space-y-3 pt-8" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+        <div className="flex flex-col items-center text-center space-y-2 pt-4" dir={isRtl ? 'rtl' : 'ltr'}>
+          {isSetupMode ? (
+            <div className="h-10 w-10 bg-blue-600/15 border border-blue-500/30 rounded-2xl flex items-center justify-center text-blue-400 mb-1">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+          ) : null}
           <div>
             <h1 className={`text-xl font-bold tracking-tight ${
               theme === 'light' ? 'text-black' : 'text-white'
             }`}>
-              {t('login.title')}
+              {isSetupMode ? t('login.setupTitle') : t('login.title')}
             </h1>
-            <p className="text-xs text-slate-400 mt-1 font-medium">{t('login.subtitle')}</p>
+            <p className="text-xs text-slate-400 mt-1 font-medium max-w-xs mx-auto">
+              {isSetupMode ? t('login.setupSubtitle') : t('login.subtitle')}
+            </p>
           </div>
         </div>
 
         {/* Error Alert Panel */}
         {error && (
-          <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl flex items-center gap-3 text-xs animate-fade-in mt-4">
-            <AlertCircle className="h-4.5 w-4.5 shrink-0" />
+          <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl flex items-center gap-2.5 text-xs animate-fade-in mt-3" dir={isRtl ? 'rtl' : 'ltr'}>
+            <AlertCircle className="h-4 w-4 shrink-0" />
             <span className="font-medium">{error}</span>
           </div>
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4 mt-6" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+        <form onSubmit={isSetupMode ? handleSetupSubmit : handleLoginSubmit} className="space-y-3.5 mt-4" dir={isRtl ? 'rtl' : 'ltr'}>
           {/* Username */}
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1">
             <label className="text-[10px] text-slate-455 uppercase font-semibold tracking-wider px-1">{t('common.username')}</label>
             <div className="relative">
-              <User className={`absolute ${language === 'ar' ? 'right-3.5' : 'left-3.5'} top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500`} />
+              <User className={`absolute ${isRtl ? 'right-3.5' : 'left-3.5'} top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500`} />
               <input
                 ref={inputRef}
                 type="text"
@@ -142,52 +213,109 @@ export default function Login({ onLogin, theme, toggleTheme }) {
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder={t('login.usernamePlaceholder')}
                 disabled={loading}
-                className={`w-full ${language === 'ar' ? 'pr-11 pl-4' : 'pl-11 pr-4'} py-2.5 bg-slate-955/60 border border-slate-850 rounded-xl text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 transition-colors`}
+                className={`w-full ${isRtl ? 'pr-11 pl-4' : 'pl-11 pr-4'} py-2 bg-slate-955/60 border border-slate-850 rounded-xl text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 transition-colors`}
                 autoComplete="username"
               />
             </div>
           </div>
 
           {/* Password */}
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1">
             <label className="text-[10px] text-slate-455 uppercase font-semibold tracking-wider px-1">{t('common.password')}</label>
             <div className="relative">
-              <Lock className={`absolute ${language === 'ar' ? 'right-3.5' : 'left-3.5'} top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500`} />
+              <Lock className={`absolute ${isRtl ? 'right-3.5' : 'left-3.5'} top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500`} />
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={t('login.passwordPlaceholder')}
                 disabled={loading}
-                className={`w-full ${language === 'ar' ? 'pr-11 pl-11' : 'pl-11 pr-11'} py-2.5 bg-slate-955/60 border border-slate-850 rounded-xl text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 transition-colors`}
-                autoComplete="current-password"
+                className={`w-full ${isRtl ? 'pr-11 pl-11' : 'pl-11 pr-11'} py-2 bg-slate-955/60 border border-slate-850 rounded-xl text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 transition-colors`}
+                autoComplete={isSetupMode ? "new-password" : "current-password"}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className={`absolute ${language === 'ar' ? 'left-3.5' : 'right-3.5'} top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer`}
+                className={`absolute ${isRtl ? 'left-3.5' : 'right-3.5'} top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer`}
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
           </div>
 
+          {/* Confirm Password (Only in Setup Mode) */}
+          {isSetupMode && (
+            <div className="flex flex-col gap-1 animate-fade-in">
+              <label className="text-[10px] text-slate-455 uppercase font-semibold tracking-wider px-1">{t('login.confirmPassword')}</label>
+              <div className="relative">
+                <CheckCircle2 className={`absolute ${isRtl ? 'right-3.5' : 'left-3.5'} top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500`} />
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder={t('login.confirmPasswordPlaceholder')}
+                  disabled={loading}
+                  className={`w-full ${isRtl ? 'pr-11 pl-11' : 'pl-11 pr-11'} py-2 bg-slate-955/60 border border-slate-850 rounded-xl text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 transition-colors`}
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className={`absolute ${isRtl ? 'left-3.5' : 'right-3.5'} top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer`}
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 mt-2 bg-blue-600 hover:bg-blue-550 text-white text-xs font-semibold rounded-xl tracking-wide shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2"
+            className="w-full py-2.5 mt-2 bg-blue-600 hover:bg-blue-550 text-white text-xs font-semibold rounded-xl tracking-wide shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2"
           >
             {loading ? (
               <RefreshCw className="h-4 w-4 animate-spin" />
+            ) : isSetupMode ? (
+              t('login.createAdminBtn')
             ) : (
               t('login.signIn')
             )}
           </button>
         </form>
 
+        {/* Setup Toggle Links */}
+        {!isMandatorySetup && (
+          <div className="mt-3.5 text-center">
+            {isSetupMode ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setError('')
+                  setIsSetupMode(false)
+                }}
+                className="text-[11px] text-slate-400 hover:text-slate-200 font-medium transition-colors cursor-pointer"
+              >
+                {t('login.switchToLogin')}
+              </button>
+            ) : isDefaultAdmin ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setError('')
+                  setIsSetupMode(true)
+                }}
+                className="text-[11px] text-blue-400 hover:text-blue-300 font-medium underline underline-offset-2 transition-colors cursor-pointer"
+              >
+                {t('login.switchToSetup')}
+              </button>
+            ) : null}
+          </div>
+        )}
+
         {/* Footer info note */}
-        <div className="text-center pt-4">
+        <div className="text-center pt-3">
           <p className="text-[10px] text-slate-500">{t('login.version')}</p>
         </div>
       </div>

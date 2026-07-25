@@ -15,6 +15,7 @@ import { STUDENT_PRINT_STYLES, CERTIFICATE_PRINT_STYLES } from '../utils/printSt
 import QRCode from 'qrcode'
 import AdvancedTable from '../components/AdvancedTable'
 import SkeletonLoader from '../components/SkeletonLoader'
+import PageHelpModal from '../components/PageHelpModal'
 import { exportToExcel } from '../utils/excelExport'
 
 const CustomCheckbox = ({ checked, onChange, disabled }) => {
@@ -1596,7 +1597,10 @@ export default function Students() {
       {/* Top Banner section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white">{t('students.title')}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold tracking-tight text-white">{t('students.title')}</h1>
+            <PageHelpModal pageKey="students" />
+          </div>
           <p className="text-xs text-slate-400">{t('students.subtitle')}</p>
         </div>
         <div className="flex items-center gap-3">

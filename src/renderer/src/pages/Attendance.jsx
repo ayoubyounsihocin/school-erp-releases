@@ -3,6 +3,7 @@ import { useLanguage } from '../i18n'
 import { ipcService } from '../services/ipcService'
 import CustomDatePicker from '../components/CustomDatePicker'
 import AdvancedTable from '../components/AdvancedTable'
+import PageHelpModal from '../components/PageHelpModal'
 import {
   CalendarCheck,
   AlertCircle,
@@ -1364,9 +1365,12 @@ function Attendance() {
       {/* Top Banner section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white">
-            {t('attendance.title') || 'Attendance & Absences'}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold tracking-tight text-white">
+              {t('attendance.title') || 'Attendance & Absences'}
+            </h1>
+            <PageHelpModal pageKey="attendance" />
+          </div>
           <p className="text-xs text-slate-400">
             {t('attendance.subtitle') || 'Daily attendance registry and comprehensive absence logs.'}
           </p>

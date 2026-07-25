@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useLanguage } from '../i18n'
 import { ipcService } from '../services/ipcService'
+import PageHelpModal from '../components/PageHelpModal'
 import { getCoursePaymentsBalance } from '../utils/billing'
 import { 
   Mail, Send, FileText, Plus, Trash2, Edit2, AlertCircle, CheckCircle, 
@@ -421,9 +422,12 @@ export default function Communication() {
       {/* SaaS Header */}
       <div className={`flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-800/40 pb-5 ${textAlign}`}>
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-            {isAr ? 'مركز الاتصالات والبريد' : 'Communication & Mail Hub'}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold tracking-tight text-white bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+              {isAr ? 'مركز الاتصالات والبريد' : 'Communication & Mail Hub'}
+            </h1>
+            <PageHelpModal pageKey="communication" />
+          </div>
           <p className="text-xs text-slate-400 mt-1">
             {isAr ? 'إرسال رسائل بريدية جماعية وفردية ذكية لأولياء الأمور والطلاب والمدرسين بنقرة واحدة.' : 'Send personalized bulk and single emails to Parents, Students, and Teachers instantly.'}
           </p>
