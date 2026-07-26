@@ -77,7 +77,18 @@ const en = {
     copyTicket: 'Copy Reset Ticket',
     ticketCopied: 'Ticket Copied to Clipboard!',
     contactAdminHelp: 'You can also contact your local School IT Administrator to reset your password directly from Users Settings.',
-    closeModal: 'Back to Sign In'
+    closeModal: 'Back to Sign In',
+    submitPortalBtn: 'Send Request to Website',
+    submitting: 'Submitting Request...',
+    submitSuccess: 'Submitted Successfully to Website!',
+    submitError: 'Failed to submit request to server. Please try copy & send manually.',
+    checkStatusBtn: 'Check Approval Status',
+    checkingStatus: 'Checking Status...',
+    approvedSuccess: 'Request Approved!',
+    tempUsernameLabel: 'Temporary Username',
+    tempPasswordLabel: 'Temporary Password (PIN)',
+    savedLocallyMsg: 'These temporary credentials have been saved locally. You can now use them to sign in.',
+    waitingApproval: 'Waiting for administrator approval... (Checking status automatically)'
   },
   loading: {
     title: 'EduManage ERP',

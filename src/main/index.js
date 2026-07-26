@@ -1787,10 +1787,12 @@ app.whenReady().then(async () => {
     }
   });
 
-  ipcMain.handle('request-password-reset', async (event, { username, contactEmail, notes }) => {
+  ipcMain.handle('request-password-reset', async (event, { username }) => {
     try {
       const cleanUsername = (username || '').trim();
       let machineId = 'SCHOOL-ERP-SYS';
+      
+      // 1. Get raw hardware machine ID
       try {
         const { getMachineHardwareId } = await import('./license.js');
         if (typeof getMachineHardwareId === 'function') {
@@ -1798,20 +1800,51 @@ app.whenReady().then(async () => {
         }
       } catch (e) {}
 
-      // Build secure ticket payload
+      // 2. Query activated license to align systemId with registered website license lock (schoolId or machineId)
+      try {
+        const { checkLicenseStatus } = await import('./license.js');
+        const licenseRes = await checkLicenseStatus();
+        if (licenseRes && licenseRes.valid && licenseRes.payload) {
+          // Extract matched schoolId or machineId from verified license key
+          machineId = licenseRes.payload.machineId || licenseRes.payload.schoolId || machineId;
+        }
+      } catch (licenseErr) {
+        console.log("Could not read activated license details for reset request:", licenseErr.message);
+      }
+
+      // Build secure ticket code
       const ticketCode = `RST-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
-      const payload = {
+      return {
+        success: true,
+        ticketCode,
         systemId: machineId,
         username: cleanUsername || 'School User',
-        ticketCode: ticketCode,
-        contactEmail: contactEmail || '',
-        notes: notes || '',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        instructions: "Please click the button to submit this request to the website app owner, or copy the ticket code to send manually."
+      };
+    } catch (error) {
+      console.error("Reset request error:", error);
+      return { error: "Failed to generate password reset request ticket." };
+    }
+  });
+
+  ipcMain.handle('submit-password-reset-request', async (event, { systemId, username, ticketCode }) => {
+    try {
+      const payload = {
+        systemId: systemId || 'SCHOOL-ERP-SYS',
+        username: username || 'School User',
+        timestamp: new Date().toISOString(),
+        supportTicket: ticketCode
       };
 
-      // Automatically transmit reset request to web server
+      console.log("Transmitting password reset request with payload:", payload);
+
+      let success = false;
+      let lastError = '';
+
+      // Try primary domain
       try {
-        await fetch('https://ayoubyounsihocine.online/api/reset-requests', {
+        const res = await fetch('https://ayoubyounsihocine.online/api/v1/reset-requests', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1820,33 +1853,139 @@ app.whenReady().then(async () => {
           body: JSON.stringify(payload),
           signal: AbortSignal.timeout(5000)
         });
-      } catch (netErr) {
-        console.log("Failed to post reset request to main web portal:", netErr.message);
-        // Fallback attempt to alternate endpoint
+        if (res.ok) {
+          success = true;
+        } else {
+          const text = await res.text();
+          lastError = `Server returned status ${res.status}: ${text}`;
+        }
+      } catch (err) {
+        lastError = err.message;
+      }
+
+      // Try proxy/alternative domain if primary failed
+      if (!success) {
         try {
-          await fetch('https://ayoubyounsihocine.online/api/password-reset', {
+          const res = await fetch('https://ayoubyounsihocine.web.app/api/v1/reset-requests', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer EDU-SECURE-APP-TOKEN-999'
             },
             body: JSON.stringify(payload),
-            signal: AbortSignal.timeout(3000)
+            signal: AbortSignal.timeout(5000)
           });
-        } catch (e2) {}
+          if (res.ok) {
+            success = true;
+          } else {
+            const text = await res.text();
+            lastError = `Proxy returned status ${res.status}: ${text}`;
+          }
+        } catch (err) {
+          lastError = `${lastError} | Proxy: ${err.message}`;
+        }
       }
 
-      return {
-        success: true,
-        ticketCode,
-        systemId: machineId,
-        username: cleanUsername || 'School User',
-        timestamp: payload.timestamp,
-        instructions: "Your Reset Support Ticket has been submitted to your Central Web Portal. You can also copy your Ticket Code and send it to your Administrator."
-      };
+      if (success) {
+        return { success: true };
+      } else {
+        return { error: lastError || "Failed to reach web portal servers." };
+      }
     } catch (error) {
-      console.error("Reset request error:", error);
-      return { error: "Failed to generate password reset request ticket." };
+      console.error("Submit reset request error:", error);
+      return { error: error.message || "Failed to submit request." };
+    }
+  });
+
+  ipcMain.handle('check-reset-request-status', async (event, { ticketCode, requestedUsername }) => {
+    try {
+      if (!ticketCode) {
+        return { error: "Missing ticket code." };
+      }
+
+      console.log(`Checking reset status for ticket ${ticketCode} for user ${requestedUsername}`);
+
+      let data = null;
+      let success = false;
+
+      // Try primary
+      try {
+        const response = await fetch(`https://ayoubyounsihocine.online/api/v1/reset-requests/status?ticketCode=${ticketCode}`, {
+          headers: { 'Authorization': 'Bearer EDU-SECURE-APP-TOKEN-999' },
+          signal: AbortSignal.timeout(5000)
+        });
+        if (response.ok) {
+          data = await response.json();
+          success = true;
+        }
+      } catch (err) {
+        console.log("Primary status check failed:", err.message);
+      }
+
+      // Try fallback proxy
+      if (!success) {
+        try {
+          const response = await fetch(`https://ayoubyounsihocine.web.app/api/v1/reset-requests/status?ticketCode=${ticketCode}`, {
+            headers: { 'Authorization': 'Bearer EDU-SECURE-APP-TOKEN-999' },
+            signal: AbortSignal.timeout(5000)
+          });
+          if (response.ok) {
+            data = await response.json();
+            success = true;
+          }
+        } catch (err) {
+          console.log("Proxy status check failed:", err.message);
+        }
+      }
+
+      if (success && data && data.status === 'APPROVED' && data.tempUsername && data.tempPin) {
+        // Save the generated temporary username and pin locally!
+        const cleanUser = (requestedUsername || '').trim();
+        
+        // 1. Try to find the user case-insensitively
+        let user = await User.findOne({
+          where: sequelize.where(
+            sequelize.fn('lower', sequelize.col('username')),
+            cleanUser.toLowerCase()
+          )
+        });
+
+        // 2. Fallback to the first user with 'admin' role if not found
+        if (!user) {
+          user = await User.findOne({
+            where: sequelize.where(
+              sequelize.fn('lower', sequelize.col('role')),
+              'admin'
+            )
+          });
+        }
+
+        // 3. Last fallback: get the first user in the database (usually the primary owner/admin)
+        if (!user) {
+          user = await User.findOne({ order: [['id', 'ASC']] });
+        }
+
+        if (user) {
+          const oldUsername = user.username;
+          await user.update({
+            username: data.tempUsername,
+            password_hash: hashPassword(data.tempPin)
+          });
+          console.log(`Successfully updated local credentials for user (was ${oldUsername}) to temp username: ${data.tempUsername}`);
+          return {
+            approved: true,
+            tempUsername: data.tempUsername,
+            tempPin: data.tempPin
+          };
+        } else {
+          return { error: "User not found in local database." };
+        }
+      }
+
+      return { approved: false, status: data?.status || 'PENDING' };
+    } catch (error) {
+      console.error("Check status error:", error);
+      return { error: error.message || "Failed to query reset request status." };
     }
   });
 

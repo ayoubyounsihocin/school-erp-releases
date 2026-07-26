@@ -23,12 +23,19 @@ export default function Login({ onLogin, theme, toggleTheme }) {
   const [resetData, setResetData] = useState(null)
   const [resetLoading, setResetLoading] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [submitStatus, setSubmitStatus] = useState(null) // null | 'submitting' | 'success' | 'error'
+  const [submitErrorMsg, setSubmitErrorMsg] = useState('')
 
   const inputRef = useRef(null)
 
   const handleOpenResetModal = async () => {
     setShowResetModal(true)
     setResetLoading(true)
+    setSubmitStatus(null)
+    setSubmitErrorMsg('')
+    setIsApproved(false)
+    setRetrievedUsername('')
+    setRetrievedPin('')
     try {
       const ticketRes = await ipcService.requestPasswordReset(username)
       if (ticketRes && ticketRes.success) {
@@ -48,6 +55,81 @@ export default function Login({ onLogin, theme, toggleTheme }) {
     setCopied(true)
     setTimeout(() => setCopied(false), 2500)
   }
+
+  const handleSubmitResetTicket = async () => {
+    if (!resetData) return
+    setSubmitStatus('submitting')
+    setSubmitErrorMsg('')
+    try {
+      const res = await ipcService.submitPasswordResetRequest({
+        systemId: resetData.systemId,
+        username: resetData.username,
+        ticketCode: resetData.ticketCode
+      })
+      if (res && res.success) {
+        setSubmitStatus('success')
+      } else {
+        setSubmitStatus('error')
+        setSubmitErrorMsg(res.error || 'Server error')
+      }
+    } catch (err) {
+      console.error("Failed to submit ticket:", err)
+      setSubmitStatus('error')
+      setSubmitErrorMsg(err.message || 'Network error')
+    }
+  }
+
+  // Approval verification states
+  const [statusChecking, setStatusChecking] = useState(false)
+  const [isApproved, setIsApproved] = useState(false)
+  const [retrievedUsername, setRetrievedUsername] = useState('')
+  const [retrievedPin, setRetrievedPin] = useState('')
+
+  const handleCheckResetStatus = async (silent = false) => {
+    if (!resetData) return
+    if (!silent) setStatusChecking(true)
+    setSubmitErrorMsg('')
+    try {
+      const res = await ipcService.checkResetRequestStatus({
+        ticketCode: resetData.ticketCode,
+        requestedUsername: resetData.username
+      })
+      if (res && res.approved) {
+        setIsApproved(true)
+        setRetrievedUsername(res.tempUsername)
+        setRetrievedPin(res.tempPin)
+      } else if (res && res.error) {
+        if (!silent) {
+          setSubmitStatus('error')
+          setSubmitErrorMsg(res.error)
+        }
+      }
+    } catch (err) {
+      console.error("Failed to verify status:", err)
+      if (!silent) {
+        setSubmitStatus('error')
+        setSubmitErrorMsg(err.message || 'Connection failed')
+      }
+    } finally {
+      if (!silent) setStatusChecking(false)
+    }
+  }
+
+  // Auto-polling status check hook
+  useEffect(() => {
+    let intervalId = null;
+    if (showResetModal && submitStatus === 'success' && !isApproved && resetData) {
+      // Poll every 7 seconds silently
+      intervalId = setInterval(() => {
+        handleCheckResetStatus(true);
+      }, 7000);
+    }
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [showResetModal, submitStatus, isApproved, resetData]);
 
   useEffect(() => {
     let isMounted = true;
@@ -394,38 +476,132 @@ export default function Login({ onLogin, theme, toggleTheme }) {
               </div>
             ) : resetData ? (
               <div className="space-y-3 pt-1">
-                {/* System ID & Username */}
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="p-2.5 bg-slate-955/60 border border-slate-800 rounded-xl">
-                    <span className="text-[10px] text-slate-500 block uppercase font-medium">{t('login.systemId')}</span>
-                    <span className="text-slate-200 font-mono font-bold truncate block">{resetData.systemId}</span>
-                  </div>
-                  <div className="p-2.5 bg-slate-955/60 border border-slate-800 rounded-xl">
-                    <span className="text-[10px] text-slate-500 block uppercase font-medium">{t('common.username')}</span>
-                    <span className="text-slate-200 font-bold truncate block">{resetData.username}</span>
-                  </div>
-                </div>
+                {isApproved ? (
+                  <div className="space-y-3 animate-fade-in">
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl flex items-center gap-2.5 text-xs font-semibold">
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      <span>{t('login.approvedSuccess')}</span>
+                    </div>
 
-                {/* Ticket Code */}
-                <div className="p-3 bg-blue-950/20 border border-blue-500/30 rounded-xl flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] text-blue-400 uppercase font-bold tracking-wider block">{t('login.ticketCode')}</span>
-                    <span className="text-sm font-mono font-bold text-blue-200">{resetData.ticketCode}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleCopyTicket}
-                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-blue-500/20"
-                  >
-                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-300" /> : <Copy className="h-3.5 w-3.5" />}
-                    {copied ? t('login.ticketCopied') : t('login.copyTicket')}
-                  </button>
-                </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="p-2.5 bg-slate-955/60 border border-slate-800 rounded-xl">
+                        <span className="text-[10px] text-slate-500 block uppercase font-medium">{t('login.tempUsernameLabel')}</span>
+                        <span className="text-slate-200 font-mono font-bold truncate block select-text">{retrievedUsername}</span>
+                      </div>
+                      <div className="p-2.5 bg-slate-955/60 border border-slate-800 rounded-xl">
+                        <span className="text-[10px] text-slate-500 block uppercase font-medium">{t('login.tempPasswordLabel')}</span>
+                        <span className="text-slate-200 font-mono font-bold truncate block select-text">{retrievedPin}</span>
+                      </div>
+                    </div>
 
-                <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-300 flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                  <span>{t('login.contactAdminHelp')}</span>
-                </div>
+                    <p className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-[11px] text-blue-300">
+                      {t('login.savedLocallyMsg')}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* System ID & Username */}
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="p-2.5 bg-slate-955/60 border border-slate-800 rounded-xl">
+                        <span className="text-[10px] text-slate-500 block uppercase font-medium">{t('login.systemId')}</span>
+                        <span className="text-slate-200 font-mono font-bold truncate block">{resetData.systemId}</span>
+                      </div>
+                      <div className="p-2.5 bg-slate-955/60 border border-slate-800 rounded-xl">
+                        <span className="text-[10px] text-slate-500 block uppercase font-medium">{t('common.username')}</span>
+                        <span className="text-slate-200 font-bold truncate block">{resetData.username}</span>
+                      </div>
+                    </div>
+
+                    {/* Ticket Code */}
+                    <div className="p-3 bg-blue-950/20 border border-blue-500/30 rounded-xl flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] text-blue-400 uppercase font-bold tracking-wider block">{t('login.ticketCode')}</span>
+                        <span className="text-sm font-mono font-bold text-blue-200">{resetData.ticketCode}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCopyTicket}
+                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border border-slate-700"
+                      >
+                        {copied ? <Check className="h-3.5 w-3.5 text-emerald-300" /> : <Copy className="h-3.5 w-3.5" />}
+                        {copied ? t('login.ticketCopied') : t('login.copyTicket')}
+                      </button>
+                    </div>
+
+                    {/* Submit to Web Portal Button */}
+                    <button
+                      type="button"
+                      disabled={submitStatus === 'submitting' || submitStatus === 'success'}
+                      onClick={handleSubmitResetTicket}
+                      className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                        submitStatus === 'success'
+                          ? 'bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 cursor-default'
+                          : submitStatus === 'submitting'
+                          ? 'bg-blue-600/50 text-white cursor-wait'
+                          : 'bg-blue-600 hover:bg-blue-550 text-white shadow-lg shadow-blue-500/10'
+                      }`}
+                    >
+                      {submitStatus === 'submitting' ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                          {t('login.submitting')}
+                        </>
+                      ) : submitStatus === 'success' ? (
+                        <>
+                          <Check className="h-4 w-4 text-emerald-400" />
+                          {t('login.submitSuccess')}
+                        </>
+                      ) : (
+                        t('login.submitPortalBtn')
+                      )}
+                    </button>
+
+                    {/* Check Status Button (Only shown after successful submission) */}
+                    {submitStatus === 'success' && (
+                      <div className="space-y-2.5 w-full">
+                        {/* Auto-checking pulse indicator */}
+                        <div className="p-3 bg-indigo-550/10 border border-indigo-500/20 text-indigo-400 rounded-xl flex items-center justify-center gap-2.5 text-xs animate-pulse font-medium">
+                          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                          <span>{t('login.waitingApproval')}</span>
+                        </div>
+
+                        <button
+                          type="button"
+                          disabled={statusChecking}
+                          onClick={() => handleCheckResetStatus(false)}
+                          className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-550 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/10 transition-all cursor-pointer animate-fade-in"
+                        >
+                          {statusChecking ? (
+                            <>
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                              {t('login.checkingStatus')}
+                            </>
+                          ) : (
+                            t('login.checkStatusBtn')
+                          )}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Submit Status Alerts */}
+                    {submitStatus === 'error' && (
+                      <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl flex items-start gap-2.5 text-xs animate-fade-in">
+                        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <span className="font-medium">{t('login.submitError')}</span>
+                          {submitErrorMsg && (
+                            <p className="mt-1 text-[10px] font-mono text-rose-500/80 leading-normal">{submitErrorMsg}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-300 flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <span>{t('login.contactAdminHelp')}</span>
+                    </div>
+                  </>
+                )}
               </div>
             ) : null}
 
