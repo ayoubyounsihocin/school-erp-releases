@@ -19,16 +19,28 @@ function hashPassword(password) {
 }
 
 function verifyPassword(password, storedHash) {
-  if (!storedHash) return false;
+  if (!storedHash || typeof storedHash !== 'string' || typeof password !== 'string') return false;
   if (!storedHash.includes(':')) {
     // Legacy SHA-256 fallback
     const legacyHash = crypto.createHash('sha256').update(password).digest('hex');
-    return legacyHash === storedHash;
+    const b1 = Buffer.from(legacyHash, 'utf8');
+    const b2 = Buffer.from(storedHash, 'utf8');
+    if (b1.length !== b2.length) return false;
+    return crypto.timingSafeEqual(b1, b2);
   }
   const [salt, key] = storedHash.split(':');
+  if (!salt || !key) return false;
   const derivedKey = crypto.scryptSync(password, salt, 64).toString('hex');
-  return derivedKey === key;
+  const b1 = Buffer.from(derivedKey, 'hex');
+  const b2 = Buffer.from(key, 'hex');
+  if (b1.length !== b2.length) return false;
+  return crypto.timingSafeEqual(b1, b2);
 }
+
+// In-memory brute force protection: username/IP -> { count, lockUntil }
+const loginAttempts = new Map();
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCK_TIME_MS = 5 * 60 * 1000; // 5 minutes lockout
 
 
 
@@ -1705,28 +1717,63 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('login', async (event, { username, password }) => {
     try {
-      const user = await User.findOne({ where: { username } });
-      if (!user) {
+      const cleanUsername = (username || '').trim();
+      const cleanPassword = password || '';
+
+      if (!cleanUsername || !cleanPassword) {
+        return { error: "Please provide both username and password." };
+      }
+
+      // 🔒 Check brute-force lockout status
+      const attemptKey = cleanUsername.toLowerCase();
+      const record = loginAttempts.get(attemptKey);
+      const now = Date.now();
+
+      if (record && record.lockUntil > now) {
+        const remainingMinutes = Math.ceil((record.lockUntil - now) / 60000);
+        return { 
+          error: `Account is temporarily locked due to multiple failed login attempts. Please wait ${remainingMinutes} minute(s) before trying again.` 
+        };
+      }
+
+      const user = await User.findOne({ where: { username: cleanUsername } });
+      if (!user || !user.is_active) {
+        // Record failed attempt
+        const currentCount = (record && record.lockUntil <= now ? 0 : record?.count || 0) + 1;
+        const lockUntil = currentCount >= MAX_FAILED_ATTEMPTS ? now + LOCK_TIME_MS : 0;
+        loginAttempts.set(attemptKey, { count: currentCount, lockUntil });
         return { error: "Invalid username or password." };
       }
-      if (!user.is_active) {
-        return { error: "This user account has been deactivated." };
-      }
-      const isValid = verifyPassword(password, user.password_hash);
+
+      const isValid = verifyPassword(cleanPassword, user.password_hash);
       if (!isValid) {
+        // Record failed attempt
+        const currentCount = (record && record.lockUntil <= now ? 0 : record?.count || 0) + 1;
+        const lockUntil = currentCount >= MAX_FAILED_ATTEMPTS ? now + LOCK_TIME_MS : 0;
+        loginAttempts.set(attemptKey, { count: currentCount, lockUntil });
+        
+        if (lockUntil > now) {
+          return { error: "Too many failed attempts. Account temporarily locked for 5 minutes." };
+        }
         return { error: "Invalid username or password." };
       }
+
+      // Successful login -> Clear brute force tracking
+      loginAttempts.delete(attemptKey);
+
       // Upgrade legacy SHA-256 hash transparently
       if (!user.password_hash.includes(':')) {
-        const upgradedHash = hashPassword(password);
+        const upgradedHash = hashPassword(cleanPassword);
         await user.update({ password_hash: upgradedHash });
       }
+
       currentSessionUser = {
         id: user.id,
         username: user.username,
         role: user.role,
         permissions: user.permissions || ''
       };
+
       return {
         id: user.id,
         username: user.username,
@@ -1737,6 +1784,33 @@ app.whenReady().then(async () => {
     } catch (error) {
       console.error("Login error:", error);
       return { error: "An authentication error occurred on the server." };
+    }
+  });
+
+  ipcMain.handle('request-password-reset', async (event, { username, contactEmail, notes }) => {
+    try {
+      const cleanUsername = (username || '').trim();
+      let machineId = 'SCHOOL-ERP-SYS';
+      try {
+        const { getMachineId } = await import('./license.js');
+        if (typeof getMachineId === 'function') {
+          machineId = getMachineId();
+        }
+      } catch (e) {}
+
+      // Build secure ticket payload
+      const ticketCode = `RST-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
+      return {
+        success: true,
+        ticketCode,
+        systemId: machineId,
+        username: cleanUsername || 'School User',
+        timestamp: new Date().toISOString(),
+        instructions: "Please send your Ticket Code and System ID to your Central Administrator or Web Portal to receive a 1-time Password Reset PIN."
+      };
+    } catch (error) {
+      console.error("Reset request error:", error);
+      return { error: "Failed to generate password reset request ticket." };
     }
   });
 

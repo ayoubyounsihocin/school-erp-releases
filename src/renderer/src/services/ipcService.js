@@ -88,6 +88,7 @@ export const ipcService = {
 
   // Authentication
   login: (username, password) => api.login ? api.login(username, password) : Promise.resolve({ error: 'IPC Offline' }),
+  requestPasswordReset: (username, contactEmail, notes) => api.requestPasswordReset ? api.requestPasswordReset(username, contactEmail, notes) : Promise.resolve({ success: true, ticketCode: 'MOCK-RST-1234', systemId: 'DEMO-MACHINE-ID', username: username || 'admin', instructions: 'Standalone web mode demo ticket.' }),
   checkUserSetup: () => api.checkUserSetup ? api.checkUserSetup() : Promise.resolve({ needsSetup: false, isDefaultAdmin: false }),
   setupInitialAdmin: (data) => api.setupInitialAdmin ? api.setupInitialAdmin(data) : Promise.resolve({ error: 'IPC Offline' }),
   updatePassword: (username, oldPassword, newPassword) => api.updatePassword ? api.updatePassword(username, oldPassword, newPassword) : Promise.resolve({ error: 'IPC Offline' }),

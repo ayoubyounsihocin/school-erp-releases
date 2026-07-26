@@ -2,7 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-### [1.3.5](https://github.com/ayoubyounsihocin/school-erp/compare/v1.3.4...v1.3.5) (2026-07-21)
+### [1.3.7](https://github.com/ayoubyounsihocin/school-erp/compare/v1.3.6...v1.3.7) (2026-07-26)
+
+### Features & Security Hardening
+* Add login rate-limiting, brute-force lockout protection, timing attack prevention, and secure password reset support ticket workflow.
+
+### [1.3.6](https://github.com/ayoubyounsihocin/school-erp/compare/v1.3.5...v1.3.6) (2026-07-26)
 
 ### [1.3.4](https://github.com/ayoubyounsihocin/school-erp/compare/v1.3.3...v1.3.4) (2026-07-20)
 

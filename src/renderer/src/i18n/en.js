@@ -51,7 +51,7 @@ const en = {
     usernamePlaceholder: 'Username',
     passwordPlaceholder: 'Password',
     signIn: 'Sign In',
-    version: 'School ERP System v1.3.6',
+    version: 'School ERP System v1.3.7',
     loading: 'Signing In...',
     errorFields: 'Please fill in all fields.',
     errorInvalid: 'Invalid username or password.',
@@ -66,7 +66,18 @@ const en = {
     passwordMinLength: 'Password must be at least 4 characters.',
     setupNotice: 'Using default admin account? Click to set your custom Username & Password',
     switchToSetup: 'Set Custom Admin Credentials',
-    switchToLogin: 'Back to Standard Sign In'
+    switchToLogin: 'Back to Standard Sign In',
+    forgotCredentials: 'Forgot Password or Username?',
+    resetModalTitle: 'Account Recovery & Password Reset',
+    resetModalSubtitle: 'Need help accessing your school ERP account?',
+    resetInstructions: 'For security reasons, user passwords are encrypted and cannot be viewed in plain text. Please copy your Reset Ticket below and send it to your Central Administrator or Web Portal to receive a 1-time Password Reset PIN.',
+    systemId: 'System ID Code',
+    ticketCode: 'Reset Support Ticket',
+    generateTicketBtn: 'Generate Reset Ticket',
+    copyTicket: 'Copy Reset Ticket',
+    ticketCopied: 'Ticket Copied to Clipboard!',
+    contactAdminHelp: 'You can also contact your local School IT Administrator to reset your password directly from Users Settings.',
+    closeModal: 'Back to Sign In'
   },
   loading: {
     title: 'EduManage ERP',

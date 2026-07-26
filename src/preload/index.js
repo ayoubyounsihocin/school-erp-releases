@@ -39,6 +39,7 @@ const api = {
   updateExpense: (id, expenseData) => ipcRenderer.invoke('update-expense', { id, expenseData }),
   deleteExpense: (id) => ipcRenderer.invoke('delete-expense', id),
   login: (username, password) => ipcRenderer.invoke('login', { username, password }),
+  requestPasswordReset: (username, contactEmail, notes) => ipcRenderer.invoke('request-password-reset', { username, contactEmail, notes }),
   checkUserSetup: () => ipcRenderer.invoke('check-user-setup'),
   setupInitialAdmin: (data) => ipcRenderer.invoke('setup-initial-admin', data),
   updatePassword: (username, oldPassword, newPassword) => ipcRenderer.invoke('update-password', { username, oldPassword, newPassword }),
