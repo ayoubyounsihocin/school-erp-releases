@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.3.8](https://github.com/ayoubyounsihocin/school-erp/compare/v1.3.7...v1.3.8) (2026-07-26)
+
+### Features & Web Sync
+* Add direct HTTP transmission of reset support tickets to central website admin portal (`https://ayoubyounsihocine.online/api/reset-requests`).
+
 ### [1.3.7](https://github.com/ayoubyounsihocin/school-erp/compare/v1.3.6...v1.3.7) (2026-07-26)
 
 ### Features & Security Hardening

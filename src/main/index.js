@@ -1792,21 +1792,57 @@ app.whenReady().then(async () => {
       const cleanUsername = (username || '').trim();
       let machineId = 'SCHOOL-ERP-SYS';
       try {
-        const { getMachineId } = await import('./license.js');
-        if (typeof getMachineId === 'function') {
-          machineId = getMachineId();
+        const { getMachineHardwareId } = await import('./license.js');
+        if (typeof getMachineHardwareId === 'function') {
+          machineId = getMachineHardwareId();
         }
       } catch (e) {}
 
       // Build secure ticket payload
       const ticketCode = `RST-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
+      const payload = {
+        systemId: machineId,
+        username: cleanUsername || 'School User',
+        ticketCode: ticketCode,
+        contactEmail: contactEmail || '',
+        notes: notes || '',
+        timestamp: new Date().toISOString()
+      };
+
+      // Automatically transmit reset request to web server
+      try {
+        await fetch('https://ayoubyounsihocine.online/api/reset-requests', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer EDU-SECURE-APP-TOKEN-999'
+          },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(5000)
+        });
+      } catch (netErr) {
+        console.log("Failed to post reset request to main web portal:", netErr.message);
+        // Fallback attempt to alternate endpoint
+        try {
+          await fetch('https://ayoubyounsihocine.online/api/password-reset', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer EDU-SECURE-APP-TOKEN-999'
+            },
+            body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(3000)
+          });
+        } catch (e2) {}
+      }
+
       return {
         success: true,
         ticketCode,
         systemId: machineId,
         username: cleanUsername || 'School User',
-        timestamp: new Date().toISOString(),
-        instructions: "Please send your Ticket Code and System ID to your Central Administrator or Web Portal to receive a 1-time Password Reset PIN."
+        timestamp: payload.timestamp,
+        instructions: "Your Reset Support Ticket has been submitted to your Central Web Portal. You can also copy your Ticket Code and send it to your Administrator."
       };
     } catch (error) {
       console.error("Reset request error:", error);
