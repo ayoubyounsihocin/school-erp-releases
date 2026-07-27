@@ -31,23 +31,7 @@ export default function Dashboard() {
         setStudentsCount(students.length)
         setFinancials(summary)
         
-        // If we get real database history, use it. Otherwise, populate with nice baseline mocks.
-        if (chartResult && chartResult.length > 0) {
-          setChartData(chartResult)
-        } else {
-          setChartData([
-            { name: 'Jan', Revenue: 6400, Expenses: 3100 },
-            { name: 'Feb', Revenue: 7800, Expenses: 4200 },
-            { name: 'Mar', Revenue: 9100, Expenses: 3800 },
-            { name: 'Apr', Revenue: 11200, Expenses: 5100 },
-            { name: 'May', Revenue: 14300, Expenses: 6800 },
-            { 
-              name: summary.monthName || 'Jun', 
-              Revenue: summary.totalRevenue > 0 ? summary.totalRevenue : 12840, 
-              Expenses: summary.totalExpenses > 0 ? summary.totalExpenses : 7150 
-            }
-          ])
-        }
+        setChartData(chartResult || [])
 
         // 1. Calculate Receivables
         const receivables = students.reduce((sum, student) => {
