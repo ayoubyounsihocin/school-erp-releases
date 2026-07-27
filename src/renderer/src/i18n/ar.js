@@ -51,7 +51,7 @@ const ar = {
     usernamePlaceholder: 'اسم المستخدم',
     passwordPlaceholder: 'كلمة المرور',
     signIn: 'تسجيل الدخول',
-    version: 'نظام إدارة المدارس الإصدار 1.3.8',
+    version: 'نظام إدارة المدارس الإصدار 1.3.9',
     loading: 'جاري تسجيل الدخول...',
     errorFields: 'يرجى ملء جميع الحقول.',
     errorInvalid: 'اسم المستخدم أو كلمة المرور غير صحيحة.',

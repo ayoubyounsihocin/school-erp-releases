@@ -51,7 +51,7 @@ const en = {
     usernamePlaceholder: 'Username',
     passwordPlaceholder: 'Password',
     signIn: 'Sign In',
-    version: 'School ERP System v1.3.8',
+    version: 'School ERP System v1.3.9',
     loading: 'Signing In...',
     errorFields: 'Please fill in all fields.',
     errorInvalid: 'Invalid username or password.',
