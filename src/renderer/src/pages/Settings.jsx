@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useLanguage } from '../i18n'
 import { useSearchParams } from 'react-router-dom'
-import { Shield, Monitor, Save, UserPlus, Trash2, User, Users, Lock, RefreshCw, Key, Database, Download, Upload, X, School, Phone, MapPin, Mail, Globe, Calendar, Sliders, FileText, Activity, CreditCard, BookOpen, GraduationCap, ShoppingCart, Search, Filter, Eye, EyeOff } from 'lucide-react'
+import { Shield, Monitor, Save, UserPlus, Trash2, User, Users, Lock, RefreshCw, Key, Database, Download, Upload, X, School, Phone, MapPin, Mail, Globe, Calendar, Sliders, FileText, Activity, CreditCard, BookOpen, GraduationCap, ShoppingCart, Search, Filter, Eye, EyeOff, Pencil } from 'lucide-react'
 import AdvancedTable from '../components/AdvancedTable'
 import PageHelpModal from '../components/PageHelpModal'
 import { ipcService } from '../services/ipcService'
@@ -152,6 +152,7 @@ export default function Settings({ currentUser, onUserUpdate }) {
   
   const [classroomsCountSetting, setClassroomsCountSetting] = useState('5')
   const [editingUser, setEditingUser] = useState(null)
+  const [editingSystemUser, setEditingSystemUser] = useState(null)
   const [editingUserPermissions, setEditingUserPermissions] = useState({})
   const [defaultPermissionsTemplate, setDefaultPermissionsTemplate] = useState('dashboard,students,attendance')
 
@@ -260,6 +261,7 @@ export default function Settings({ currentUser, onUserUpdate }) {
 
   // Profile / Password States
   const [profileAvatar, setProfileAvatar] = useState(currentUser?.avatar || '')
+  const [profileUsername, setProfileUsername] = useState(currentUser?.username || '')
   const [oldPassword, setOldPassword] = useState('')
   const [changeNewPassword, setChangeNewPassword] = useState('')
   const [showOldPassword, setShowOldPassword] = useState(false)
@@ -282,6 +284,11 @@ export default function Settings({ currentUser, onUserUpdate }) {
       setProfileAvatar(currentUser.avatar)
     } else {
       setProfileAvatar('')
+    }
+    if (currentUser?.username) {
+      setProfileUsername(currentUser.username)
+    } else {
+      setProfileUsername('')
     }
   }, [currentUser])
 
@@ -493,8 +500,84 @@ export default function Settings({ currentUser, onUserUpdate }) {
     }
   }
 
+  const handleStartEditUser = (u) => {
+    setEditingSystemUser(u)
+    setNewUsername(u.username)
+    setNewPassword('')
+    setNewRole(u.role)
+    setNewUserAvatar(u.avatar || '')
+    setNewUserPermissions(getPermissionsObj(u.permissions || ''))
+  }
+
+  const handleCancelEditUser = () => {
+    setEditingSystemUser(null)
+    setNewUsername('')
+    setNewPassword('')
+    setNewRole('Receptionist')
+    setNewUserAvatar('')
+    setNewUserPermissions({
+      dashboard: true,
+      students: true,
+      teachers: true,
+      courses: true,
+      attendance: true,
+      finances: true,
+      settings: false
+    })
+  }
+
   const handleCreateUser = async (e) => {
     e.preventDefault()
+
+    if (editingSystemUser) {
+      // Edit User Mode
+      const errors = {}
+      if (!newUsername.trim()) errors.username = t('settings.validationUsernameRequired')
+      if (newPassword.trim() && newPassword.length < 4) errors.password = t('settings.validationNewPassword')
+      
+      if (Object.keys(errors).length > 0) {
+        setUserErrors(errors)
+        return
+      }
+      setUserErrors({})
+      setActionLoading(true)
+
+      const permissionsList = newRole === 'Admin'
+        ? 'dashboard,students,teachers,courses,attendance,finances,settings'
+        : Object.keys(newUserPermissions).filter(k => newUserPermissions[k]).join(',')
+
+      try {
+        if (window.api) {
+          const res = await ipcService.updateUserProfile({
+            id: editingSystemUser.id,
+            username: newUsername,
+            newPassword: newPassword.trim() || undefined,
+            avatar: newUserAvatar || null,
+            role: newRole,
+            permissions: permissionsList
+          })
+          if (res && res.error) {
+            alert(res.error)
+          } else {
+            alert(language === 'ar' ? "تم تحديث حساب المستخدم بنجاح!" : "User account updated successfully!")
+            handleCancelEditUser()
+            fetchUsers()
+            // If the updated user is the current user, trigger local state update
+            if (editingSystemUser.id === currentUser.id && onUserUpdate && res.user) {
+              onUserUpdate(res.user)
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to update user:", err)
+        alert(language === 'ar' ? "فشل في تحديث حساب المستخدم." : "Failed to update user account.")
+      } finally {
+        setActionLoading(false)
+      }
+      return
+    }
+
+    // Create User Mode
     const errors = {}
     if (!newUsername.trim()) errors.username = t('settings.validationUsernameRequired')
     if (!newPassword.trim()) errors.password = t('settings.validationPasswordRequired')
@@ -623,6 +706,10 @@ export default function Settings({ currentUser, onUserUpdate }) {
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault()
+    if (!profileUsername.trim()) {
+      alert(language === 'ar' ? "اسم المستخدم لا يمكن أن يكون فارغاً." : "Username cannot be empty.")
+      return
+    }
     const errors = {}
     if (changeNewPassword.trim()) {
       if (!oldPassword.trim()) errors.oldPassword = t('settings.validationOldPassword')
@@ -648,9 +735,10 @@ export default function Settings({ currentUser, onUserUpdate }) {
           }
         }
 
-        // Update profile (avatar)
+        // Update profile (username & avatar)
         const profileRes = await ipcService.updateUserProfile({
           id: currentUser.id,
+          username: profileUsername,
           avatar: profileAvatar
         })
 
@@ -1325,6 +1413,22 @@ export default function Settings({ currentUser, onUserUpdate }) {
                       <div className="space-y-4">
                         <div className="flex flex-col gap-1.5">
                           <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">
+                            {t('common.username') || 'Username'}
+                          </label>
+                          <div className="relative">
+                            <User className={`absolute ${language === 'ar' ? 'right-3.5' : 'left-3.5'} top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500`} />
+                            <input
+                              type="text"
+                              value={profileUsername}
+                              onChange={(e) => setProfileUsername(e.target.value)}
+                              placeholder={t('common.username') || 'Username'}
+                              className={`w-full ${language === 'ar' ? 'pr-10 pl-4 text-right' : 'pl-10 pr-4 text-left'} py-2.5 bg-slate-955 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-655 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold`}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">
                             {t('settings.oldPasswordLabel')} <span className="text-[9px] text-slate-500 font-normal">({language === 'ar' ? 'مطلوب فقط لتغيير كلمة المرور' : 'only required to change password'})</span>
                           </label>
                           <div className="relative">
@@ -1389,16 +1493,24 @@ export default function Settings({ currentUser, onUserUpdate }) {
                     </div>
                   </form>
                   
-                  {/* Card 2: User Registration Form */}
+                  {/* Card 2: User Registration Form / Edit Form */}
                   <form onSubmit={handleCreateUser} className="p-6 bg-slate-900/35 border border-slate-850/60 rounded-2xl space-y-4 backdrop-blur-md flex flex-col justify-between h-full">
                     <div className="space-y-4 flex-1">
                       <div className="flex items-center gap-2.5 border-b border-slate-800/60 pb-3 mb-4">
-                        <div className="p-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400">
-                          <UserPlus className="h-4 w-4" />
+                        <div className={`p-2 rounded-xl border ${editingSystemUser ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'}`}>
+                          {editingSystemUser ? <Pencil className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
                         </div>
                         <div>
-                          <h4 className="text-xs font-bold text-slate-150">{t('settings.createUserHeader')}</h4>
-                          <p className="text-[10px] text-slate-500 mt-0.5">{language === 'ar' ? 'إضافة حساب جديد وتعيين صلاحياته' : 'Register receptionist or admin'}</p>
+                          <h4 className="text-xs font-bold text-slate-150">
+                            {editingSystemUser 
+                              ? (language === 'ar' ? 'تعديل حساب مستخدم للنظام' : 'Edit System User Account') 
+                              : t('settings.createUserHeader')}
+                          </h4>
+                          <p className="text-[10px] text-slate-500 mt-0.5">
+                            {editingSystemUser 
+                              ? (language === 'ar' ? 'تعديل بيانات الحساب وصلاحيات الوصول' : 'Modify user account details and permissions') 
+                              : (language === 'ar' ? 'إضافة حساب جديد وتعيين صلاحياته' : 'Register receptionist or admin')}
+                          </p>
                         </div>
                       </div>
 
@@ -1448,14 +1560,21 @@ export default function Settings({ currentUser, onUserUpdate }) {
                         </div>
 
                         <div className="flex flex-col gap-1.5">
-                          <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">{t('common.password')}</label>
+                          <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5 text-start">
+                            <span>{t('common.password')}</span>
+                            {editingSystemUser && (
+                              <span className="text-[9px] text-slate-500 font-normal normal-case ml-1.5">
+                                ({language === 'ar' ? 'اتركه فارغاً لإبقائه دون تغيير' : 'leave blank to keep unchanged'})
+                              </span>
+                            )}
+                          </label>
                           <div className="relative">
                             <Lock className={`absolute ${language === 'ar' ? 'right-3.5' : 'left-3.5'} top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500`} />
                             <input
                               type={showNewUserPassword ? "text" : "password"}
                               value={newPassword}
                               onChange={(e) => setNewPassword(e.target.value)}
-                              placeholder="••••••••"
+                              placeholder={editingSystemUser ? "••••••••" : "••••••••"}
                               className={`w-full ${language === 'ar' ? 'pr-10 pl-10 text-right' : 'pl-10 pr-10 text-left'} py-2.5 bg-slate-955 border border-slate-800/80 rounded-xl text-xs text-slate-100 placeholder-slate-655 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold`}
                             />
                             <button
@@ -1530,7 +1649,7 @@ export default function Settings({ currentUser, onUserUpdate }) {
                                           className={`px-3 py-2 rounded-xl text-[10px] font-semibold transition-all duration-200 flex items-center justify-between border cursor-pointer select-none ${
                                             hasPerm
                                               ? 'bg-blue-600/10 border-blue-500/35 text-blue-300 shadow-md shadow-blue-500/5'
-                                              : 'bg-slate-950/40 border-slate-850/60 text-slate-500 hover:text-slate-400 hover:bg-slate-900/40'
+                                              : 'bg-slate-955/40 border-slate-850/60 text-slate-500 hover:text-slate-400 hover:bg-slate-900/40'
                                           }`}
                                         >
                                           <span>{item.label}</span>
@@ -1551,14 +1670,29 @@ export default function Settings({ currentUser, onUserUpdate }) {
                       </div>
                     </div>
 
-                    <div className="flex justify-end pt-4 border-t border-slate-900/60 mt-4">
+                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-900/60 mt-4">
+                      {editingSystemUser && (
+                        <button
+                          type="button"
+                          onClick={handleCancelEditUser}
+                          className="px-4 py-2.5 bg-slate-800 hover:bg-slate-750 border border-slate-700/50 text-slate-350 hover:text-slate-200 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                        >
+                          {language === 'ar' ? 'إلغاء' : 'Cancel'}
+                        </button>
+                      )}
                       <button
                         type="submit"
                         disabled={actionLoading}
-                        className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-550 disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer shadow-md shadow-indigo-500/10"
+                        className={`px-4 py-2.5 ${editingSystemUser ? 'bg-emerald-600 hover:bg-emerald-550 shadow-emerald-500/10' : 'bg-indigo-600 hover:bg-indigo-550 shadow-indigo-500/10'} disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer shadow-md`}
                       >
-                        {actionLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
-                        {t('settings.createUserBtn')}
+                        {actionLoading ? (
+                          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          editingSystemUser ? <Save className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />
+                        )}
+                        {editingSystemUser 
+                          ? (language === 'ar' ? 'حفظ التعديلات' : 'Save Changes') 
+                          : t('settings.createUserBtn')}
                       </button>
                     </div>
                   </form>
@@ -1627,7 +1761,15 @@ export default function Settings({ currentUser, onUserUpdate }) {
                                   </button>
                                 )}
                               </td>
-                              <td className="px-6 py-3 text-center">
+                              <td className="px-6 py-3 text-center flex items-center justify-center gap-1">
+                                <button
+                                  onClick={() => handleStartEditUser(u)}
+                                  disabled={actionLoading}
+                                  className="p-2 hover:bg-blue-500/10 text-slate-500 hover:text-blue-400 rounded-lg transition-colors cursor-pointer inline-flex"
+                                  title={language === 'ar' ? 'تعديل الحساب' : 'Edit Account'}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
                                 <button
                                   onClick={() => handleDeleteUser(u.id, u.username)}
                                   disabled={actionLoading}
@@ -1743,7 +1885,7 @@ export default function Settings({ currentUser, onUserUpdate }) {
                         <button
                           onClick={handleWipeDatabase}
                           disabled={exporting || importing || wiping}
-                          className="w-full py-2.5 bg-red-650 hover:bg-red-600 disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-md shadow-red-500/10 border border-red-500/10"
+                          className="w-full py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-md shadow-red-500/10 border border-red-500/10"
                         >
                           {wiping ? (
                             <RefreshCw className="h-3.5 w-3.5 animate-spin" />
@@ -2341,7 +2483,7 @@ export default function Settings({ currentUser, onUserUpdate }) {
               <button
                 onClick={handleConfirmWipe}
                 disabled={wiping || wipeConfirmInput !== wipeConfirmWord}
-                className="px-4 py-2 bg-red-650 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-semibold shadow-lg shadow-red-500/10 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-semibold shadow-lg shadow-red-500/10 transition-colors flex items-center justify-center gap-2 cursor-pointer"
               >
                 {wiping ? (
                   <RefreshCw className="h-3.5 w-3.5 animate-spin" />

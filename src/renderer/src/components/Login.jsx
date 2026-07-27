@@ -28,6 +28,15 @@ export default function Login({ onLogin, theme, toggleTheme }) {
 
   const inputRef = useRef(null)
 
+  // Auto-hide error after 3 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError('')
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [error])
   const handleOpenResetModal = async () => {
     setShowResetModal(true)
     setResetLoading(true)
@@ -169,7 +178,7 @@ export default function Login({ onLogin, theme, toggleTheme }) {
       if (window.api) {
         const res = await ipcService.login(username, password)
         if (res && res.error) {
-          setError(res.error)
+          setError(res.error === 'Invalid username or password.' ? t('login.errorInvalid') : res.error)
         } else if (res) {
           onLogin(res)
         } else {
@@ -302,13 +311,7 @@ export default function Login({ onLogin, theme, toggleTheme }) {
           </div>
         </div>
 
-        {/* Error Alert Panel */}
-        {error && (
-          <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl flex items-center gap-2.5 text-xs animate-fade-in mt-3" dir={isRtl ? 'rtl' : 'ltr'}>
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            <span className="font-medium">{error}</span>
-          </div>
-        )}
+
 
         {/* Form */}
         <form onSubmit={isSetupMode ? handleSetupSubmit : handleLoginSubmit} className="space-y-3.5 mt-4" dir={isRtl ? 'rtl' : 'ltr'}>
@@ -334,16 +337,6 @@ export default function Login({ onLogin, theme, toggleTheme }) {
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between px-1">
               <label className="text-[10px] text-slate-455 uppercase font-semibold tracking-wider">{t('common.password')}</label>
-              {!isSetupMode && (
-                <button
-                  type="button"
-                  onClick={handleOpenResetModal}
-                  className="text-[11px] text-blue-400 hover:text-blue-300 font-medium transition-colors cursor-pointer flex items-center gap-1"
-                >
-                  <HelpCircle className="h-3 w-3" />
-                  {t('login.forgotCredentials')}
-                </button>
-              )}
             </div>
             <div className="relative">
               <Lock className={`absolute ${isRtl ? 'right-3.5' : 'left-3.5'} top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500`} />
@@ -437,9 +430,23 @@ export default function Login({ onLogin, theme, toggleTheme }) {
           </div>
         )}
 
+        {/* Forgot Credentials Link */}
+        {!isSetupMode && (
+          <div className="mt-3 text-center">
+            <button
+              type="button"
+              onClick={handleOpenResetModal}
+              className="text-[11.5px] text-blue-400 hover:text-blue-300 font-medium transition-colors cursor-pointer inline-flex items-center gap-1.5 mx-auto"
+            >
+              <HelpCircle className="h-3.5 w-3.5" />
+              {t('login.forgotCredentials')}
+            </button>
+          </div>
+        )}
+
         {/* Footer info note */}
         <div className="text-center pt-3">
-          <p className="text-[10px] text-slate-500">{t('login.version')}</p>
+          <p className="text-[10px] text-slate-505 font-mono">{t('login.version')}</p>
         </div>
       </div>
 
@@ -615,6 +622,17 @@ export default function Login({ onLogin, theme, toggleTheme }) {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Floating Error Toast */}
+      {error && (
+        <div 
+          className="absolute top-14 sm:top-15 inset-x-0 mx-auto z-[100] w-max min-w-[280px] max-w-[90vw] p-3 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-xl shadow-xl flex items-center gap-3 text-xs animate-fade-in" 
+          dir={isRtl ? 'rtl' : 'ltr'}
+        >
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span className="font-semibold text-start">{error}</span>
         </div>
       )}
     </div>

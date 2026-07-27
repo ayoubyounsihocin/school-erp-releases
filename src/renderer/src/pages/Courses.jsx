@@ -1224,27 +1224,27 @@ export default function Courses() {
                           {course.price.toLocaleString(language === 'ar' ? 'ar-DZ-u-nu-latn' : 'en-US', { minimumFractionDigits: 2 })} DA
                         </span>
                       </div>
-                      <h4 className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors pt-1">{course.title}</h4>
+                      <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 pt-1">{course.title}</h4>
                       
                       {/* Instructor assignment info */}
-                      <div className="flex items-center gap-1.5 text-xs text-slate-400 pt-0.5">
+                      <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 pt-0.5">
                         <User className="h-3.5 w-3.5 text-slate-500 shrink-0" />
                         <span className="truncate">
                           {course.Teacher ? (
                             <>
-                              {t('courses.instructorLabel')}: <strong className="text-slate-300 font-medium">{course.Teacher.full_name}</strong>
+                              {t('courses.instructorLabel')}: <strong className="text-slate-700 dark:text-slate-300 font-medium">{course.Teacher.full_name}</strong>
                             </>
                           ) : (
-                            <span className="text-slate-500 italic">No assigned instructor</span>
+                            <span className="text-slate-500 dark:text-slate-400 italic">{t('courses.noInstructor') || 'No assigned instructor'}</span>
                           )}
                         </span>
                       </div>
 
                       {/* Enrolled Students count */}
-                      <div className="flex items-center gap-1.5 text-xs text-slate-400 pt-0.5">
+                      <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 pt-0.5">
                         <Users className="h-3.5 w-3.5 text-slate-500 shrink-0" />
                         <span>
-                          {t('courses.enrolledStudentsLabel')}: <strong className="text-slate-300 font-medium">{course.Students ? course.Students.length : 0}</strong>
+                          {t('courses.enrolledStudentsLabel')}: <strong className="text-slate-700 dark:text-slate-300 font-medium">{course.Students ? course.Students.length : 0}</strong>
                         </span>
                       </div>
                     </div>

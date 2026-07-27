@@ -2003,8 +2003,15 @@ app.whenReady().then(async () => {
     return { success: true };
   });
  
-  ipcMain.handle('update-user-profile', async (event, { id, username, newPassword, avatar }) => {
+  ipcMain.handle('update-user-profile', async (event, { id, username, newPassword, avatar, role, permissions }) => {
     try {
+      const isSelf = currentSessionUser && currentSessionUser.id === id;
+      if (!isSelf || role !== undefined || permissions !== undefined) {
+        if (!hasPermission('settings')) {
+          return { error: "Access Denied: Settings permissions required." };
+        }
+      }
+
       const user = await User.findByPk(id);
       if (!user) {
         return { error: "User not found" };
@@ -2026,12 +2033,38 @@ app.whenReady().then(async () => {
       if (avatar !== undefined) {
         updateData.avatar = avatar;
       }
+      if (role !== undefined) {
+        // Prevent removing the last admin's admin role
+        if (user.role === 'Admin' && role !== 'Admin') {
+          const adminCount = await User.count({ where: { role: 'Admin' } });
+          if (adminCount <= 1) {
+            return { error: "Cannot change the role of the only administrator." };
+          }
+        }
+        updateData.role = role;
+      }
+      if (permissions !== undefined) {
+        updateData.permissions = permissions;
+      }
 
       await user.update(updateData);
+      
       await AuditLog.create({
         action: 'UPDATE_PROFILE',
         description: `Updated profile details for user account '${user.username}'.`
       });
+
+      // If we modified the current session user, update it
+      if (isSelf) {
+        currentSessionUser = {
+          id: user.id,
+          username: user.username,
+          role: user.role,
+          avatar: user.avatar,
+          permissions: user.permissions || ''
+        };
+      }
+
       return {
         success: true,
         user: {

@@ -48,6 +48,7 @@ export default function AdvancedTable({
     getPaginationRowModel: enablePagination ? getPaginationRowModel() : undefined,
     getFilteredRowModel: getFilteredRowModel(),
     columnResizeMode: 'onChange',
+    columnResizeDirection: isAr ? 'rtl' : 'ltr',
     enableRowSelection: true,
     initialState: {
       pagination: {
