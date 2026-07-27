@@ -150,6 +150,32 @@ export default function Finances() {
     return result === key ? cat : result;
   }
   const [activeTab, setActiveTab] = useState('payments') // 'payments' | 'expenses'
+
+  // Correct active tab based on permissions
+  useEffect(() => {
+    const canPayments = hasPermission('finances:payment') || hasPermission('finances:view');
+    const canExpenses = hasPermission('finances:write') || hasPermission('finances:view');
+    const canUnpaid = hasPermission('finances:view');
+    const canPayouts = hasPermission('finances:payout') || hasPermission('finances:view');
+
+    if (activeTab === 'payments' && !canPayments) {
+      if (canExpenses) setActiveTab('expenses');
+      else if (canUnpaid) setActiveTab('unpaid');
+      else if (canPayouts) setActiveTab('instructor-payments');
+    } else if (activeTab === 'expenses' && !canExpenses) {
+      if (canPayments) setActiveTab('payments');
+      else if (canUnpaid) setActiveTab('unpaid');
+      else if (canPayouts) setActiveTab('instructor-payments');
+    } else if (activeTab === 'unpaid' && !canUnpaid) {
+      if (canPayments) setActiveTab('payments');
+      else if (canExpenses) setActiveTab('expenses');
+      else if (canPayouts) setActiveTab('instructor-payments');
+    } else if (activeTab === 'instructor-payments' && !canPayouts) {
+      if (canPayments) setActiveTab('payments');
+      else if (canExpenses) setActiveTab('expenses');
+      else if (canUnpaid) setActiveTab('unpaid');
+    }
+  }, [activeTab]);
   const [students, setStudents] = useState([])
   const [allAbsences, setAllAbsences] = useState([])
   const [payments, setPayments] = useState([])
@@ -1816,14 +1842,16 @@ export default function Finances() {
             >
               <Printer className="h-3.5 w-3.5" />
             </button>
-            <button
-              type="button"
-              onClick={() => handleEditPayment(pay)}
-              className="p-1 hover:bg-slate-800 text-amber-400 hover:text-amber-300 rounded cursor-pointer transition-colors inline-block"
-              title={t('finances.editPaymentTooltip')}
-            >
-              <Edit className="h-3.5 w-3.5" />
-            </button>
+            {hasPermission('finances:payment') && (
+              <button
+                type="button"
+                onClick={() => handleEditPayment(pay)}
+                className="p-1 hover:bg-slate-800 text-amber-400 hover:text-amber-300 rounded cursor-pointer transition-colors inline-block"
+                title={t('finances.editPaymentTooltip')}
+              >
+                <Edit className="h-3.5 w-3.5" />
+              </button>
+            )}
             {hasPermission('finances:delete') && (
               <button
                 type="button"
@@ -1889,14 +1917,16 @@ export default function Finances() {
         const exp = row.original;
         return (
           <div className="flex items-center justify-end gap-1.5 no-print">
-            <button
-              type="button"
-              onClick={() => handleEditExpense(exp)}
-              className="p-1 hover:bg-slate-800 text-amber-400 hover:text-amber-300 rounded cursor-pointer transition-colors inline-block"
-              title={t('finances.editExpenseTooltip')}
-            >
-              <Edit className="h-3.5 w-3.5" />
-            </button>
+            {hasPermission('finances:write') && (
+              <button
+                type="button"
+                onClick={() => handleEditExpense(exp)}
+                className="p-1 hover:bg-slate-800 text-amber-400 hover:text-amber-300 rounded cursor-pointer transition-colors inline-block"
+                title={t('finances.editExpenseTooltip')}
+              >
+                <Edit className="h-3.5 w-3.5" />
+              </button>
+            )}
             {hasPermission('finances:delete') && (
               <button
                 type="button"
@@ -2286,61 +2316,63 @@ export default function Finances() {
       )}
 
       {/* Summary Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="p-6 bg-slate-900/60 border border-slate-800/60 rounded-2xl flex flex-col justify-between hover:border-slate-800 transition-colors">
-          <div className="flex justify-between items-center text-xs text-slate-400">
-            <span>{t('dashboard.revenueSeries')} ({summary.monthName ? translateMonth(summary.monthName) : (language === 'ar' ? 'الشهر الحالي' : 'Current Month')})</span>
-            <span className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <ArrowUpRight className="h-4 w-4" />
-            </span>
+      {hasPermission('finances:view') && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="p-6 bg-slate-900/60 border border-slate-800/60 rounded-2xl flex flex-col justify-between hover:border-slate-800 transition-colors">
+            <div className="flex justify-between items-center text-xs text-slate-400">
+              <span>{t('dashboard.revenueSeries')} ({summary.monthName ? translateMonth(summary.monthName) : (language === 'ar' ? 'الشهر الحالي' : 'Current Month')})</span>
+              <span className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <ArrowUpRight className="h-4 w-4" />
+              </span>
+            </div>
+            <div className="mt-4">
+              <h3 className="text-2xl font-bold text-slate-100">{summary.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} DA</h3>
+              <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block mt-1">{language === 'ar' ? 'إجمالي الرسوم المستلمة' : 'Total Tuition Received'}</span>
+            </div>
           </div>
-          <div className="mt-4">
-            <h3 className="text-2xl font-bold text-slate-100">{summary.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} DA</h3>
-            <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block mt-1">{language === 'ar' ? 'إجمالي الرسوم المستلمة' : 'Total Tuition Received'}</span>
-          </div>
-        </div>
 
-        <div className="p-6 bg-slate-900/60 border border-slate-800/60 rounded-2xl flex flex-col justify-between hover:border-slate-800 transition-colors">
-          <div className="flex justify-between items-center text-xs text-slate-400">
-            <span>{t('dashboard.expensesSeries')} ({summary.monthName ? translateMonth(summary.monthName) : (language === 'ar' ? 'الشهر الحالي' : 'Current Month')})</span>
-            <span className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20">
-              <ArrowDownRight className="h-4 w-4" />
-            </span>
+          <div className="p-6 bg-slate-900/60 border border-slate-800/60 rounded-2xl flex flex-col justify-between hover:border-slate-800 transition-colors">
+            <div className="flex justify-between items-center text-xs text-slate-400">
+              <span>{t('dashboard.expensesSeries')} ({summary.monthName ? translateMonth(summary.monthName) : (language === 'ar' ? 'الشهر الحالي' : 'Current Month')})</span>
+              <span className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                <ArrowDownRight className="h-4 w-4" />
+              </span>
+            </div>
+            <div className="mt-4">
+              <h3 className="text-2xl font-bold text-slate-100">{summary.totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} DA</h3>
+              <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block mt-1">{language === 'ar' ? 'المصاريف التشغيلية' : 'Operational Spendings'}</span>
+            </div>
           </div>
-          <div className="mt-4">
-            <h3 className="text-2xl font-bold text-slate-100">{summary.totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} DA</h3>
-            <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block mt-1">{language === 'ar' ? 'المصاريف التشغيلية' : 'Operational Spendings'}</span>
-          </div>
-        </div>
 
-        <div className="p-6 bg-slate-900/60 border border-slate-800/60 rounded-2xl flex flex-col justify-between hover:border-slate-800 transition-colors">
-          <div className="flex justify-between items-center text-xs text-slate-400">
-            <span>{language === 'ar' ? 'صافي الميزانية الشهرية' : 'Net Monthly Balance'}</span>
-            <span className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
-              <DollarSign className="h-4 w-4" />
-            </span>
+          <div className="p-6 bg-slate-900/60 border border-slate-800/60 rounded-2xl flex flex-col justify-between hover:border-slate-800 transition-colors">
+            <div className="flex justify-between items-center text-xs text-slate-400">
+              <span>{language === 'ar' ? 'صافي الميزانية الشهرية' : 'Net Monthly Balance'}</span>
+              <span className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                <DollarSign className="h-4 w-4" />
+              </span>
+            </div>
+            <div className="mt-4">
+              <h3 className="text-2xl font-bold text-slate-100">{summary.netBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} DA</h3>
+              <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block mt-1">{language === 'ar' ? 'الرصيد النقدي الحالي' : 'Current Ledger Cash'}</span>
+            </div>
           </div>
-          <div className="mt-4">
-            <h3 className="text-2xl font-bold text-slate-100">{summary.netBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} DA</h3>
-            <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block mt-1">{language === 'ar' ? 'الرصيد النقدي الحالي' : 'Current Ledger Cash'}</span>
-          </div>
-        </div>
 
-        <div className="p-6 bg-slate-900/60 border border-slate-800/60 rounded-2xl flex flex-col justify-between hover:border-slate-800 transition-colors">
-          <div className="flex justify-between items-center text-xs text-slate-400">
-            <span>{language === 'ar' ? 'المقبوضات النقدية لليوم' : 'Daily Cash Received'}</span>
-            <span className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
-              <DollarSign className="h-4 w-4" />
-            </span>
-          </div>
-          <div className="mt-4">
-            <h3 className="text-2xl font-bold text-slate-100">{todayCashTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} DA</h3>
-            <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block mt-1">
-              {language === 'ar' ? `نقدًا اليوم (المجموع: ${todayTotalAllMethods.toFixed(2)} د.ج)` : `Cash Today (Total: ${todayTotalAllMethods.toFixed(2)} DA)`}
-            </span>
+          <div className="p-6 bg-slate-900/60 border border-slate-800/60 rounded-2xl flex flex-col justify-between hover:border-slate-800 transition-colors">
+            <div className="flex justify-between items-center text-xs text-slate-400">
+              <span>{language === 'ar' ? 'المقبوضات النقدية لليوم' : 'Daily Cash Received'}</span>
+              <span className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                <DollarSign className="h-4 w-4" />
+              </span>
+            </div>
+            <div className="mt-4">
+              <h3 className="text-2xl font-bold text-slate-100">{todayCashTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} DA</h3>
+              <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block mt-1">
+                {language === 'ar' ? `نقدًا اليوم (المجموع: ${todayTotalAllMethods.toFixed(2)} د.ج)` : `Cash Today (Total: ${todayTotalAllMethods.toFixed(2)} DA)`}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Tabs and Workspace */}
       <div className="space-y-6">
