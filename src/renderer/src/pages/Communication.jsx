@@ -13,6 +13,17 @@ export default function Communication() {
   const isAr = language === 'ar'
   const textAlign = isAr ? 'text-right' : 'text-left font-sans'
 
+  const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}')
+  const hasPermission = (permissionKey) => {
+    if (currentUser.role === 'Admin') return true;
+    const userPerms = currentUser.permissions || '';
+    const permsArr = userPerms.split(',').map(s => s.trim());
+    if (permsArr.includes(permissionKey)) return true;
+    const parts = permissionKey.split(':');
+    if (parts.length > 1 && permsArr.includes(parts[0])) return true;
+    return false;
+  };
+
   // Refs
   const bodyTextareaRef = useRef(null)
 
@@ -416,6 +427,22 @@ export default function Communication() {
   }
 
   const directoryList = getFilteredDirectoryList()
+
+  if (!hasPermission('communication:view')) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[500px] text-center p-6 bg-slate-950/20 border border-slate-900/60 rounded-3xl backdrop-blur-sm animate-scale-up">
+        <AlertCircle className="h-12 w-12 text-rose-500 mb-4 animate-bounce" />
+        <h2 className="text-lg font-bold text-white mb-2">
+          {language === 'ar' ? 'تم رفض الوصول' : 'Access Denied'}
+        </h2>
+        <p className="text-xs text-slate-400 max-w-sm">
+          {language === 'ar' 
+            ? 'ليست لديك الصلاحيات الكافية لعرض صفحة التواصل والرسائل. يرجى مراجعة مسؤول النظام للحصول على الصلاحية اللازمة.' 
+            : 'You do not have sufficient permissions to view the Communication center. Please contact your system administrator.'}
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full space-y-6 animate-fade-in-up">
@@ -891,24 +918,28 @@ export default function Communication() {
                 {isAr ? 'مسح الحقول' : 'Clear Composer'}
               </button>
 
-              <button
-                type="button"
-                onClick={triggerSaveTemplateAsNew}
-                className="px-3.5 py-2.5 bg-slate-800/80 hover:bg-slate-755 border border-slate-700/80 rounded-xl text-slate-350 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                {isAr ? 'حفظ كقالب جديد' : 'Save As Template'}
-              </button>
+              {hasPermission('communication:write') && (
+                <button
+                  type="button"
+                  onClick={triggerSaveTemplateAsNew}
+                  className="px-3.5 py-2.5 bg-slate-800/80 hover:bg-slate-755 border border-slate-700/80 rounded-xl text-slate-350 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  {isAr ? 'حفظ كقالب جديد' : 'Save As Template'}
+                </button>
+              )}
 
-              <button
-                type="button"
-                onClick={handleSendEmails}
-                disabled={sending || getRecipients().length === 0}
-                className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:from-slate-200 disabled:to-slate-200 dark:disabled:from-slate-800 dark:disabled:to-slate-800 disabled:text-slate-400 dark:disabled:text-slate-500 text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-2 transition-all disabled:shadow-none cursor-pointer disabled:cursor-not-allowed border border-blue-500/10 disabled:border-slate-300 dark:disabled:border-slate-800 shrink-0"
-              >
-                {sending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                {isAr ? 'إرسال البريد الإلكتروني' : 'Broadcast Email Message'}
-              </button>
+              {hasPermission('communication:write') && (
+                <button
+                  type="button"
+                  onClick={handleSendEmails}
+                  disabled={sending || getRecipients().length === 0}
+                  className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:from-slate-200 disabled:to-slate-200 dark:disabled:from-slate-800 dark:disabled:to-slate-800 disabled:text-slate-400 dark:disabled:text-slate-500 text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-2 transition-all disabled:shadow-none cursor-pointer disabled:cursor-not-allowed border border-blue-500/10 disabled:border-slate-300 dark:disabled:border-slate-800 shrink-0"
+                >
+                  {sending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                  {isAr ? 'إرسال البريد الإلكتروني' : 'Broadcast Email Message'}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -943,14 +974,16 @@ export default function Communication() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
                       <h4 className="text-xs font-bold text-slate-200 truncate">{tmpl.name}</h4>
-                      <button
-                        type="button"
-                        onClick={(e) => handleDeleteTemplate(tmpl.id, e)}
-                        className="p-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg hover:bg-rose-500/20 transition-all cursor-pointer shrink-0"
-                        title={isAr ? 'حذف القالب' : 'Delete Template'}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      {hasPermission('communication:write') && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteTemplate(tmpl.id, e)}
+                          className="p-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg hover:bg-rose-500/20 transition-all cursor-pointer shrink-0"
+                          title={isAr ? 'حذف القالب' : 'Delete Template'}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                     <div className="text-[10px] text-slate-400 truncate">
                       <strong>{isAr ? 'الموضوع: ' : 'Subject: '}</strong>

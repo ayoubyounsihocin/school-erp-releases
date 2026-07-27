@@ -11,6 +11,17 @@ export default function Settings({ currentUser, onUserUpdate }) {
   const [searchParams, setSearchParams] = useSearchParams()
   const activeSection = searchParams.get('tab') || 'general'
 
+  const hasPermission = (permissionKey) => {
+    const user = currentUser || JSON.parse(sessionStorage.getItem('currentUser') || '{}')
+    if (user.role === 'Admin') return true;
+    const userPerms = user.permissions || '';
+    const permsArr = userPerms.split(',').map(s => s.trim());
+    if (permsArr.includes(permissionKey)) return true;
+    const parts = permissionKey.split(':');
+    if (parts.length > 1 && permsArr.includes(parts[0])) return true;
+    return false;
+  };
+
   // Audit Logs States
   const [auditLogs, setAuditLogs] = useState([])
   const [loadingAuditLogs, setLoadingAuditLogs] = useState(false)
@@ -205,6 +216,13 @@ export default function Settings({ currentUser, onUserUpdate }) {
       ]
     },
     {
+      title: language === 'ar' ? 'التواصل والرسائل' : 'Communication & Messaging',
+      items: [
+        { key: 'communication:view', label: language === 'ar' ? 'عرض سجلات التواصل والرسائل' : 'View Send History' },
+        { key: 'communication:write', label: language === 'ar' ? 'إرسال الرسائل والبريد الإلكتروني' : 'Send Emails & Announcements' }
+      ]
+    },
+    {
       title: language === 'ar' ? 'إعدادات النظام والأمان' : 'System & Security Settings',
       items: [
         { key: 'settings:view', label: language === 'ar' ? 'عرض الإعدادات العامة' : 'View Settings' },
@@ -243,6 +261,9 @@ export default function Settings({ currentUser, onUserUpdate }) {
       } else if (k === 'finances') {
         obj['finances:view'] = true
         obj['finances:payment'] = true
+      } else if (k === 'communication') {
+        obj['communication:view'] = true
+        obj['communication:write'] = true
       } else if (k === 'settings') {
         obj['settings:view'] = true
         obj['settings:write'] = true
@@ -543,7 +564,7 @@ export default function Settings({ currentUser, onUserUpdate }) {
       setActionLoading(true)
 
       const permissionsList = newRole === 'Admin'
-        ? 'dashboard,students,teachers,courses,attendance,finances,settings'
+        ? 'dashboard,students,teachers,courses,attendance,finances,communication,settings'
         : Object.keys(newUserPermissions).filter(k => newUserPermissions[k]).join(',')
 
       try {
@@ -591,7 +612,7 @@ export default function Settings({ currentUser, onUserUpdate }) {
     setActionLoading(true)
 
     const permissionsList = newRole === 'Admin'
-      ? 'dashboard,students,teachers,courses,attendance,finances,settings'
+      ? 'dashboard,students,teachers,courses,attendance,finances,communication,settings'
       : Object.keys(newUserPermissions).filter(k => newUserPermissions[k]).join(',')
 
     try {
@@ -977,14 +998,14 @@ export default function Settings({ currentUser, onUserUpdate }) {
           {/* Top Navigation Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-7 gap-2 bg-slate-955/25 p-2 rounded-2xl border border-slate-850/60 backdrop-blur-md w-full">
             {[
-              { id: 'general', label: t('settings.tabGeneral'), icon: Monitor, color: 'text-blue-400' },
-              { id: 'security', label: t('settings.tabSecurity'), icon: Shield, color: 'text-emerald-400' },
-              { id: 'audit', label: language === 'ar' ? 'سجل العمليات' : 'System Logs', icon: FileText, color: 'text-cyan-400' },
-              { id: 'email', label: language === 'ar' ? 'إعدادات البريد' : 'Email Setup', icon: Mail, color: 'text-sky-400' },
-              { id: 'backup', label: t('settings.tabBackup'), icon: Database, color: 'text-purple-400' },
-              { id: 'license', label: t('settings.tabLicense'), icon: Key, color: 'text-amber-400' },
-              { id: 'shortcuts', label: language === 'ar' ? 'اختصارات لوحة المفاتيح' : 'Keyboard Shortcuts', icon: Sliders, color: 'text-pink-400' }
-            ].map((tab) => {
+              { id: 'general', label: t('settings.tabGeneral'), icon: Monitor, color: 'text-blue-450', show: hasPermission('settings:view') || hasPermission('settings:write') },
+              { id: 'security', label: t('settings.tabSecurity'), icon: Shield, color: 'text-emerald-450', show: true },
+              { id: 'audit', label: language === 'ar' ? 'سجل العمليات' : 'System Logs', icon: FileText, color: 'text-cyan-450', show: hasPermission('settings:audit') },
+              { id: 'email', label: language === 'ar' ? 'إعدادات البريد' : 'Email Setup', icon: Mail, color: 'text-sky-455', show: hasPermission('settings:view') || hasPermission('settings:write') },
+              { id: 'backup', label: t('settings.tabBackup'), icon: Database, color: 'text-purple-450', show: hasPermission('settings:audit') },
+              { id: 'license', label: t('settings.tabLicense'), icon: Key, color: 'text-amber-450', show: hasPermission('settings:write') },
+              { id: 'shortcuts', label: language === 'ar' ? 'اختصارات لوحة المفاتيح' : 'Keyboard Shortcuts', icon: Sliders, color: 'text-pink-450', show: true }
+            ].filter(tab => tab.show).map((tab) => {
               const Icon = tab.icon
               const isActive = activeSection === tab.id
               return (
@@ -1009,7 +1030,7 @@ export default function Settings({ currentUser, onUserUpdate }) {
           <div className="bg-slate-900/20 border border-slate-850/60 rounded-2xl p-6 backdrop-blur-md min-h-[520px] flex flex-col justify-between">
             
             {/* ==================== GENERAL PREFERENCES ==================== */}
-            {activeSection === 'general' && (
+            {activeSection === 'general' && (hasPermission('settings:view') || hasPermission('settings:write')) && (
               <div className="space-y-6 animate-fade-in text-start flex-1">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
                   
@@ -1231,22 +1252,24 @@ export default function Settings({ currentUser, onUserUpdate }) {
                 </div>
                 
                 {/* Save Button */}
-                <div className="pt-4 mt-6 border-t border-slate-800/55 flex justify-end">
-                  <button 
-                    onClick={handleSaveSettings}
-                    disabled={saving}
-                    className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-blue-500/15 hover:shadow-blue-500/25 cursor-pointer border border-blue-500/10"
-                  >
-                    {saving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                    {t('settings.saveProfileBtn')}
-                  </button>
-                </div>
+                {hasPermission('settings:write') && (
+                  <div className="pt-4 mt-6 border-t border-slate-800/55 flex justify-end">
+                    <button 
+                      onClick={handleSaveSettings}
+                      disabled={saving}
+                      className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-blue-500/15 hover:shadow-blue-500/25 cursor-pointer border border-blue-500/10"
+                    >
+                      {saving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                      {t('settings.saveProfileBtn')}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
             
             {/* ==================== SYSTEM LOGS (AUDIT TRAIL) PANEL ==================== */}
-            {activeSection === 'audit' && (
+            {activeSection === 'audit' && hasPermission('settings:audit') && (
               <div className="space-y-6 animate-fade-in text-start flex-1">
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800/60 pb-4">
@@ -1494,8 +1517,9 @@ export default function Settings({ currentUser, onUserUpdate }) {
                   </form>
                   
                   {/* Card 2: User Registration Form / Edit Form */}
-                  <form onSubmit={handleCreateUser} className="p-6 bg-slate-900/35 border border-slate-850/60 rounded-2xl space-y-4 backdrop-blur-md flex flex-col justify-between h-full">
-                    <div className="space-y-4 flex-1">
+                  {hasPermission('settings:users') && (
+                    <form onSubmit={handleCreateUser} className="p-6 bg-slate-900/35 border border-slate-850/60 rounded-2xl space-y-4 backdrop-blur-md flex flex-col justify-between h-full">
+                      <div className="space-y-4 flex-1">
                       <div className="flex items-center gap-2.5 border-b border-slate-800/60 pb-3 mb-4">
                         <div className={`p-2 rounded-xl border ${editingSystemUser ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'}`}>
                           {editingSystemUser ? <Pencil className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
@@ -1696,10 +1720,12 @@ export default function Settings({ currentUser, onUserUpdate }) {
                       </button>
                     </div>
                   </form>
+                  )}
                 </div>
 
                 {/* User Directory */}
-                <div className="space-y-3 pt-6 border-t border-slate-850/40">
+                {hasPermission('settings:users') && (
+                  <div className="space-y-3 pt-6 border-t border-slate-850/40">
                   <div className="flex items-center gap-2 px-1">
                     <Users className="h-4.5 w-4.5 text-slate-400" />
                     <h4 className="text-xs font-bold text-slate-200">{t('settings.userAccountsHeader')}</h4>
@@ -1786,11 +1812,12 @@ export default function Settings({ currentUser, onUserUpdate }) {
                     </div>
                   )}
                 </div>
+                )}
               </div>
             )}
 
             {/* ==================== BACKUP & RESTORE ==================== */}
-            {activeSection === 'backup' && (
+            {activeSection === 'backup' && hasPermission('settings:audit') && (
               <div className="space-y-6 animate-fade-in text-start flex-1">
                 <div className="space-y-4">
                   <div className="flex items-center gap-2.5 border-b border-slate-800/60 pb-3 text-start">
@@ -1854,7 +1881,7 @@ export default function Settings({ currentUser, onUserUpdate }) {
                       <div className="pt-2">
                         <button
                           onClick={handleImportData}
-                          disabled={exporting || importing || wiping}
+                          disabled={exporting || importing || wiping || !hasPermission('settings:write')}
                           className="w-full py-2.5 bg-amber-600 hover:bg-amber-550 disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-md shadow-amber-500/10 border border-amber-500/10"
                         >
                           {importing ? (
@@ -1884,7 +1911,7 @@ export default function Settings({ currentUser, onUserUpdate }) {
                       <div className="pt-2">
                         <button
                           onClick={handleWipeDatabase}
-                          disabled={exporting || importing || wiping}
+                          disabled={exporting || importing || wiping || !hasPermission('settings:write')}
                           className="w-full py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-md shadow-red-500/10 border border-red-500/10"
                         >
                           {wiping ? (
@@ -1937,7 +1964,7 @@ export default function Settings({ currentUser, onUserUpdate }) {
             )}
 
             {/* ==================== EMAIL CONFIGURATION (SMTP) ==================== */}
-            {activeSection === 'email' && (
+            {activeSection === 'email' && hasPermission('settings:view') && (
               <div className="space-y-6 animate-fade-in text-start flex-1">
                 <div className="space-y-4">
                   <div className="flex items-center gap-2.5 border-b border-slate-800/60 pb-3 text-start">
@@ -2072,14 +2099,16 @@ export default function Settings({ currentUser, onUserUpdate }) {
                         {smtpTesting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                         {language === 'ar' ? 'اختبار الاتصال' : 'Test SMTP Connection'}
                       </button>
-                      <button
-                        onClick={handleSaveSettings}
-                        disabled={smtpTesting || saving}
-                        className="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all shadow-lg shadow-blue-500/10 cursor-pointer border border-blue-500/10"
-                      >
-                        {saving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                        {t('settings.saveProfileBtn')}
-                      </button>
+                      {hasPermission('settings:write') && (
+                        <button
+                          onClick={handleSaveSettings}
+                          disabled={smtpTesting || saving}
+                          className="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all shadow-lg shadow-blue-500/10 cursor-pointer border border-blue-500/10"
+                        >
+                          {saving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                          {t('settings.saveProfileBtn')}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -2087,7 +2116,7 @@ export default function Settings({ currentUser, onUserUpdate }) {
             )}
 
             {/* ==================== LICENSE MANAGEMENT ==================== */}
-            {activeSection === 'license' && (
+            {activeSection === 'license' && hasPermission('settings:view') && (
               <div className="space-y-6 animate-fade-in text-start flex-1">
                 <div className="space-y-4">
                   <div className="flex items-center gap-2.5 border-b border-slate-800/60 pb-3 text-start">
@@ -2167,6 +2196,7 @@ export default function Settings({ currentUser, onUserUpdate }) {
                       </div>
 
                       {/* License Activation / Update form */}
+                      {hasPermission('settings:write') && (
                       <form onSubmit={handleRenewLicense} className="p-6 bg-slate-900/35 border border-slate-850/60 rounded-2xl space-y-4 backdrop-blur-md flex flex-col justify-between h-full">
                         <div className="space-y-4 flex-1">
                           <h4 className="text-[10px] text-slate-450 uppercase font-bold tracking-wider border-b border-slate-800/60 pb-2.5">
@@ -2203,12 +2233,12 @@ export default function Settings({ currentUser, onUserUpdate }) {
                           </button>
                         </div>
                       </form>
+                      )}
                     </div>
                   )}
                 </div>
               </div>
             )}
-
             {/* ==================== KEYBOARD SHORTCUTS PANEL ==================== */}
             {activeSection === 'shortcuts' && (
               <div className="space-y-6 animate-fade-in text-start flex-1 select-none">

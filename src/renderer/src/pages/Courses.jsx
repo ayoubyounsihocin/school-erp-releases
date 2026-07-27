@@ -993,6 +993,22 @@ export default function Courses() {
     return matchesRoom && matchesSpecialty && matchesTeacher
   })
 
+  if (!hasPermission('courses:view')) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[500px] text-center p-6 bg-slate-950/20 border border-slate-900/60 rounded-3xl backdrop-blur-sm animate-scale-up">
+        <AlertCircle className="h-12 w-12 text-rose-500 mb-4 animate-bounce" />
+        <h2 className="text-lg font-bold text-white mb-2">
+          {language === 'ar' ? 'تم رفض الوصول' : 'Access Denied'}
+        </h2>
+        <p className="text-xs text-slate-400 max-w-sm">
+          {language === 'ar' 
+            ? 'ليست لديك الصلاحيات الكافية لعرض صفحة المواد والجدول. يرجى مراجعة مسؤول النظام للحصول على الصلاحية اللازمة.' 
+            : 'You do not have sufficient permissions to view the Courses & Scheduling registry. Please contact your system administrator.'}
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="no-print">
       <div className="space-y-6 animate-fade-in-up">

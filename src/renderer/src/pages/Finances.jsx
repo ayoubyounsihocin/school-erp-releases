@@ -155,7 +155,7 @@ export default function Finances() {
   useEffect(() => {
     const canPayments = hasPermission('finances:payment') || hasPermission('finances:view');
     const canExpenses = hasPermission('finances:write') || hasPermission('finances:view');
-    const canUnpaid = hasPermission('finances:view');
+    const canUnpaid = hasPermission('finances:view') || hasPermission('finances:payment');
     const canPayouts = hasPermission('finances:payout') || hasPermission('finances:view');
 
     if (activeTab === 'payments' && !canPayments) {
@@ -2401,23 +2401,25 @@ export default function Finances() {
             <Tag className="h-4 w-4" />
             {t('finances.tabExpenses')}
           </button>
-          <button
-            onClick={() => setActiveTab('unpaid')}
-            className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer border ${
-              activeTab === 'unpaid'
-                ? 'bg-purple-600/10 border-purple-500/20 text-purple-400 font-medium'
-                : 'text-slate-400 border-transparent hover:text-slate-200'
-            }`}
-          >
-            <AlertCircle className="h-4 w-4" />
-            {language === 'ar' ? 'أرصدة معلقة' : 'Unpaid Balances'}
-            {hasUnpaidStudents && (
-              <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500 border border-slate-900"></span>
-              </span>
-            )}
-          </button>
+          {(hasPermission('finances:view') || hasPermission('finances:payment')) && (
+            <button
+              onClick={() => setActiveTab('unpaid')}
+              className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer border ${
+                activeTab === 'unpaid'
+                  ? 'bg-purple-600/10 border-purple-500/20 text-purple-400 font-medium'
+                  : 'text-slate-400 border-transparent hover:text-slate-200'
+              }`}
+            >
+              <AlertCircle className="h-4 w-4" />
+              {language === 'ar' ? 'أرصدة معلقة' : 'Unpaid Balances'}
+              {hasUnpaidStudents && (
+                <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500 border border-slate-900"></span>
+                </span>
+              )}
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('instructor-payments')}
             className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer border ${
