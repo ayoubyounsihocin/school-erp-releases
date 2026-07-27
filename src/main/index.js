@@ -50,7 +50,10 @@ function hasPermission(moduleKey) {
   if (!currentSessionUser) return false;
   if (currentSessionUser.role === 'Admin') return true;
   const perms = currentSessionUser.permissions || '';
-  return perms.split(',').map(s => s.trim()).includes(moduleKey);
+  const permsArr = perms.split(',').map(s => s.trim());
+  if (permsArr.includes(moduleKey)) return true;
+  if (permsArr.some(p => p.startsWith(moduleKey + ':'))) return true;
+  return false;
 }
 
 function createWindow() {
