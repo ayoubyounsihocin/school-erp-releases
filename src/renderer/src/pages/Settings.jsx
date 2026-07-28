@@ -1311,14 +1311,27 @@ export default function Settings({ currentUser, onUserUpdate }) {
                           l.User?.role || 'Admin',
                           new Date(l.createdAt).toLocaleString()
                         ]);
-                        const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-                        const encodedUri = encodeURI(csvContent);
+                        const escapeCell = (val) => {
+                          if (val === null || val === undefined) return '';
+                          let str = String(val);
+                          if (str.includes('"') || str.includes(',') || str.includes('\n') || str.includes('\r')) {
+                            str = '"' + str.replace(/"/g, '""') + '"';
+                          }
+                          return str;
+                        };
+                        const csvContent = [
+                          headers.map(escapeCell).join(','),
+                          ...rows.map(row => row.map(escapeCell).join(','))
+                        ].join('\n');
+                        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
                         const link = document.createElement("a");
-                        link.setAttribute("href", encodedUri);
+                        link.setAttribute("href", url);
                         link.setAttribute("download", `system_audit_logs_${new Date().toISOString().split('T')[0]}.csv`);
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
                       }}
                       className="px-3 py-1.5 bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 text-cyan-400 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                     >

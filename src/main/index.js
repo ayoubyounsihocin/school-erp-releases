@@ -2499,7 +2499,9 @@ app.whenReady().then(async () => {
         scheduleRequests: await ScheduleRequest.findAll({ raw: true }),
         systemSettings: await SystemSetting.findAll({ raw: true }),
         studentCourses: await StudentCourses.findAll({ raw: true }),
-        absences: await Absence.findAll({ raw: true })
+        absences: await Absence.findAll({ raw: true }),
+        grades: await Grade.findAll({ raw: true }),
+        emailTemplates: await EmailTemplate.findAll({ raw: true })
       };
 
       await fs.promises.writeFile(filePath, JSON.stringify(backup, null, 2), 'utf-8');
@@ -2556,6 +2558,8 @@ app.whenReady().then(async () => {
           await SystemSetting.destroy({ where: {}, transaction: t });
           await StudentCourses.destroy({ where: {}, transaction: t });
           await Absence.destroy({ where: {}, transaction: t });
+          await Grade.destroy({ where: {}, transaction: t });
+          await EmailTemplate.destroy({ where: {}, transaction: t });
 
           if (backupData.users && backupData.users.length > 0) {
             await User.bulkCreate(backupData.users, { transaction: t });
@@ -2595,6 +2599,12 @@ app.whenReady().then(async () => {
           }
           if (backupData.absences && backupData.absences.length > 0) {
             await Absence.bulkCreate(backupData.absences, { transaction: t });
+          }
+          if (backupData.grades && backupData.grades.length > 0) {
+            await Grade.bulkCreate(backupData.grades, { transaction: t });
+          }
+          if (backupData.emailTemplates && backupData.emailTemplates.length > 0) {
+            await EmailTemplate.bulkCreate(backupData.emailTemplates, { transaction: t });
           }
 
 
