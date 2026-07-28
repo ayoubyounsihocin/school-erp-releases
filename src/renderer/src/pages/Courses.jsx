@@ -670,7 +670,7 @@ export default function Courses() {
   }
 
   const handleDeleteCourse = async (id, title) => {
-    const confirmed = await window.confirm(`Are you sure you want to delete course syllabus "${title}"? All student enrollments for this course will be removed.`)
+    const confirmed = await window.confirm(t('courses.deleteConfirmSyllabus', { title }))
     if (!confirmed) return
 
     setActionLoading(true)
@@ -836,7 +836,7 @@ export default function Courses() {
   }
 
   const handleScheduleDelete = async (id) => {
-    const confirmed = await window.confirm("Are you sure you want to remove this academic schedule slot?")
+    const confirmed = await window.confirm(t('courses.deleteConfirmSchedule'))
     if (!confirmed) return
     setActionLoading(true)
     try {
@@ -2187,9 +2187,9 @@ export default function Courses() {
               <div>
                 <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
                   <Users className="h-4.5 w-4.5 text-purple-400" />
-                  Enrollment Manager
+                  {t('courses.enrollmentManagerTitle')}
                 </h3>
-                <p className="text-[10px] text-slate-400 mt-0.5">Course: <strong className="text-slate-200">{selectedCourse.title}</strong></p>
+                <p className="text-[10px] text-slate-400 mt-0.5">{t('courses.enrollmentManagerCourse')} <strong className="text-slate-200">{selectedCourse.title}</strong></p>
               </div>
               <button
                 type="button"
@@ -2253,26 +2253,26 @@ export default function Courses() {
 
                 {/* Right Column: List of Enrolled Students */}
                 <div className="space-y-2">
-                  <h4 className="text-[9.5px] text-slate-400 uppercase font-bold tracking-wider px-0.5">Enrolled Students ({selectedCourse.Students?.length || 0})</h4>
+                  <h4 className="text-[9.5px] text-slate-400 uppercase font-bold tracking-wider px-0.5">{t('courses.enrollmentManagerEnrolled', { count: selectedCourse.Students?.length || 0 })}</h4>
                   
                   <div className="max-h-60 overflow-y-auto divide-y divide-slate-800/60 border border-slate-800/80 rounded-xl bg-slate-955/35">
                     {!selectedCourse.Students || selectedCourse.Students.length === 0 ? (
                       <div className="p-8 text-center text-xs text-slate-500 italic">
-                        No students enrolled in this course yet.
+                        {t('courses.enrollmentManagerNoStudents')}
                       </div>
                     ) : (
                       selectedCourse.Students.map(student => (
                         <div key={student.id} className="p-3 flex items-center justify-between hover:bg-slate-900/30 transition-colors">
                           <div>
                             <p className="text-xs font-semibold text-slate-200">{student.full_name}</p>
-                            <p className="text-[9px] text-slate-500 font-mono mt-0.5">Student ID: #{student.id}</p>
+                            <p className="text-[9px] text-slate-500 font-mono mt-0.5">{t('courses.enrollmentManagerStudentId')}#{student.id}</p>
                           </div>
                           <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-semibold border ${
                             student.status === 'Active'
                               ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
                               : 'bg-slate-500/10 border-slate-500/20 text-slate-400'
                           }`}>
-                            {student.status}
+                            {student.status === 'Active' ? (language === 'ar' ? 'نشط' : 'Active') : (language === 'ar' ? 'غير نشط' : student.status)}
                           </span>
                         </div>
                       ))
@@ -2289,7 +2289,7 @@ export default function Courses() {
                 onClick={() => setIsEnrollModalOpen(false)}
                 className="px-4 py-1.5 bg-slate-955 border border-slate-800 text-slate-400 hover:text-slate-200 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
               >
-                Close Manager
+                {t('courses.enrollmentManagerClose')}
               </button>
             </div>
           </div>

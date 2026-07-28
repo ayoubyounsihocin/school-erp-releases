@@ -364,7 +364,16 @@ const en = {
     statusRejected: 'Refused',
     statusPending: 'Pending',
     successRequestApproved: 'Schedule request approved successfully!',
-    successRequestRejected: 'Schedule request rejected successfully!'
+    successRequestRejected: 'Schedule request rejected successfully!',
+    deleteConfirmSyllabus: 'Are you sure you want to delete course syllabus "{title}"? All student enrollments for this course will be removed.',
+    deleteConfirmSchedule: 'Are you sure you want to remove this academic schedule slot?',
+    enrollmentManagerTitle: 'Enrollment Manager',
+    enrollmentManagerCourse: 'Course: ',
+    enrollmentManagerEnrolled: 'Enrolled Students ({count})',
+    enrollmentManagerNoStudents: 'No students enrolled in this course yet.',
+    enrollmentManagerStudentId: 'Student ID: ',
+    enrollmentManagerClose: 'Close Manager',
+    unenrollConfirm: 'Are you sure you want to unenroll {name} from "{course}"?'
   },
   finances: {
     title: 'Financial Ledger',
@@ -498,7 +507,9 @@ const en = {
     outstandingDue: 'Outstanding Due',
     noOutstandingBalances: 'No outstanding balances found. All accounts are settled!',
     pending: 'Pending',
-    action: 'Action'
+    action: 'Action',
+    deleteConfirmTuition: 'Are you sure you want to permanently delete this tuition payment? This action cannot be undone.',
+    deleteConfirmInstructor: 'Are you sure you want to permanently delete this instructor payment? This action cannot be undone.'
   },
   settings: {
     title: 'System Settings',

@@ -775,9 +775,6 @@ export default function Teachers() {
       <div className="w-full">
         {/* Directory Table */}
         <div className="w-full bg-slate-900/60 border border-slate-800/60 rounded-2xl overflow-hidden">
-          <div className="px-2 py-3 border-b border-slate-800/40 bg-slate-955/20 mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-slate-200">{t('teachers.registryTitle')}</h3>
-          </div>
           
           {loading ? (
             <SkeletonLoader type="table" rows={4} cols={5} />

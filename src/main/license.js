@@ -4,9 +4,111 @@ import fs from 'fs';
 import { join } from 'path';
 import { execSync } from 'child_process';
 import { app } from 'electron';
-import { SystemSetting } from './database/models.js';
+import { 
+  SystemSetting, sequelize, Payment, TeacherPayment, Expense, Absence, AuditLog, 
+  Schedule, ScheduleRequest, StudentCourses, Course, Student, Teacher, User 
+} from './database/models.js';
 
 let cachedMachineId = null;
+
+// Database monotonic date check
+async function getLatestDatabaseDate() {
+  try {
+    if (!sequelize) return null;
+    const results = await sequelize.query(`
+      SELECT MAX(latest_date) as max_date FROM (
+        SELECT MAX(date) as latest_date FROM Payments
+        UNION ALL
+        SELECT MAX(date) as latest_date FROM TeacherPayments
+        UNION ALL
+        SELECT MAX(date) as latest_date FROM Expenses
+        UNION ALL
+        SELECT MAX(createdAt) as latest_date FROM AuditLogs
+      )
+    `, { type: sequelize.QueryTypes.SELECT });
+    
+    if (results && results[0] && results[0].max_date) {
+      const maxDateStr = new Date(results[0].max_date).toISOString().split('T')[0];
+      return maxDateStr;
+    }
+  } catch (err) {
+    console.error("Error fetching latest database date:", err.message);
+  }
+  return null;
+}
+
+function getLicenseStateFilePath() {
+  try {
+    if (app && app.getPath) {
+      const userDataPath = app.getPath('userData');
+      return join(userDataPath, 'app_state.bin');
+    }
+  } catch (e) {
+    // Fail silently, fall back to current directory/temp directory if testing
+  }
+  return join(process.cwd(), 'app_state.bin');
+}
+
+function getAESKey() {
+  const hardwareId = getMachineHardwareId() || 'default-secret-hw-id-key';
+  return crypto.createHash('sha256').update(hardwareId).digest(); // 32 bytes
+}
+
+function writeSecureLastRunDate(dateStr) {
+  try {
+    const filePath = getLicenseStateFilePath();
+    if (!filePath) return;
+    const key = getAESKey();
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+    
+    let encrypted = cipher.update(dateStr, 'utf8', 'base64');
+    encrypted += cipher.final('base64');
+    
+    const payload = JSON.stringify({
+      iv: iv.toString('base64'),
+      data: encrypted
+    });
+    
+    fs.writeFileSync(filePath, payload, 'utf8');
+  } catch (err) {
+    console.error("Failed to write secure last run date:", err);
+  }
+}
+
+function readSecureLastRunDate() {
+  try {
+    const filePath = getLicenseStateFilePath();
+    if (!filePath || !fs.existsSync(filePath)) return null;
+    
+    const raw = fs.readFileSync(filePath, 'utf8');
+    const { iv, data } = JSON.parse(raw);
+    
+    const key = getAESKey();
+    const decipher = crypto.createDecipheriv('aes-256-cbc', key, Buffer.from(iv, 'base64'));
+    
+    let decrypted = decipher.update(data, 'base64', 'utf8');
+    decrypted += decipher.final('utf8');
+    
+    return decrypted.trim();
+  } catch (err) {
+    console.error("Failed to read secure last run date:", err);
+    return null;
+  }
+}
+
+export function getOfflineLimits(planType) {
+  switch (planType) {
+    case '1-month':
+      return { hardLimit: 5, silentLimit: 3 };
+    case '1-year':
+      return { hardLimit: 90, silentLimit: 60 };
+    case 'forever':
+      return { hardLimit: 365, silentLimit: 270 };
+    default:
+      return { hardLimit: 5, silentLimit: 3 };
+  }
+}
 
 // Helper to get filepath for fallback ID
 function getMachineIdFilePath() {
@@ -161,8 +263,8 @@ export async function checkLicenseStatus() {
     // 1. Basic Offline Check: System clock is before the license issuance date
     if (payload.createdAt && nowStr < payload.createdAt) {
       return {
-        valid: false,
-        reason: 'TAMPERED',
+        valid: true,
+        warning: 'CLOCK_TAMPERED',
         error: `System clock tampering detected. The current PC date (${nowStr}) is set before the license was issued (${payload.createdAt}).`,
         payload
       };
@@ -173,15 +275,37 @@ export async function checkLicenseStatus() {
     if (lastRunSetting && lastRunSetting.value) {
       if (nowStr < lastRunSetting.value) {
         return { 
-          valid: false, 
-          reason: 'TAMPERED', 
+          valid: true, 
+          warning: 'CLOCK_TAMPERED', 
           error: `System clock tampering detected. The PC date was rolled back (${nowStr}) before the last recorded run date (${lastRunSetting.value}).`,
           payload
         };
       }
     }
 
-    // 3. Online Verification: Compare local clock with actual network date (if connected)
+    // 3. Secure File Progression Check: System date rolled back since last run date in encrypted file
+    const secureLastRun = readSecureLastRunDate();
+    if (secureLastRun && nowStr < secureLastRun) {
+      return {
+        valid: true,
+        warning: 'CLOCK_TAMPERED',
+        error: `System clock tampering detected. System time (${nowStr}) is before the last verified operation (${secureLastRun}).`,
+        payload
+      };
+    }
+
+    // 4. Database Monotonic Check: System date rolled back since last recorded activity (Payments, Absences, etc.)
+    const maxDbDate = await getLatestDatabaseDate();
+    if (maxDbDate && nowStr < maxDbDate) {
+      return {
+        valid: true,
+        warning: 'CLOCK_TAMPERED',
+        error: `System clock tampering detected. System time (${nowStr}) is before the last database record date (${maxDbDate}).`,
+        payload
+      };
+    }
+
+    // 5. Online Verification: Compare local clock with actual network date (if connected)
     const networkDate = await getNetworkDate();
     if (networkDate) {
       const networkStr = networkDate.toISOString().split('T')[0];
@@ -189,8 +313,8 @@ export async function checkLicenseStatus() {
       // Check if network date is before license issuance
       if (payload.createdAt && networkStr < payload.createdAt) {
         return {
-          valid: false,
-          reason: 'TAMPERED',
+          valid: true,
+          warning: 'CLOCK_TAMPERED',
           error: `System clock tampering detected. The network date (${networkStr}) is set before the license was issued (${payload.createdAt}).`,
           payload
         };
@@ -202,8 +326,8 @@ export async function checkLicenseStatus() {
       const diffDays = diffTime / (1000 * 60 * 60 * 24);
       if (diffDays > 1.2) { // 1.2 days to account for time zones comfortably
         return {
-          valid: false,
-          reason: 'TAMPERED',
+          valid: true,
+          warning: 'CLOCK_TAMPERED',
           error: `System clock desynchronized. Your PC date (${nowStr}) differs significantly from the network date (${networkStr}). Please correct your clock.`,
           payload
         };
@@ -223,15 +347,32 @@ export async function checkLicenseStatus() {
       }
     }
 
-    // 4. Online Key Verification: Check if license key has been revoked or shared (Website API Sync)
+    // Determine offline grace and silent check limits
+    const { hardLimit, silentLimit } = getOfflineLimits(payload.type);
+
+    // Retrieve last online check date
+    const lastOnlineCheckSetting = await SystemSetting.findOne({ where: { key: 'license_last_online_check' } });
+    const lastOnlineCheck = lastOnlineCheckSetting && lastOnlineCheckSetting.value
+      ? lastOnlineCheckSetting.value
+      : (payload.createdAt || nowStr);
+
+    const lastCheckDate = new Date(lastOnlineCheck);
+    const currentDate = new Date(nowStr);
+    const diffTime = currentDate - lastCheckDate;
+    const daysOffline = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+
+    // 6. Online Key Verification: Check if license key has been revoked or shared (Website API Sync)
     const SYNC_URL = 'https://ayoubyounsihocine.online/api/licenses/verify';
+    let onlineCheckSuccessful = false;
+
+    // Run online sync if they have been offline for at least 1 day, or if it is time to check
     try {
       const machineId = getMachineHardwareId();
       const response = await fetch(`${SYNC_URL}?key=${encodeURIComponent(keySetting.value)}&machineId=${encodeURIComponent(machineId)}`, {
         headers: {
           'Authorization': 'Bearer EDU-SECURE-APP-TOKEN-999'
         },
-        signal: AbortSignal.timeout(4000)
+        signal: AbortSignal.timeout(3000)
       });
       
       if (response.status === 200) {
@@ -244,7 +385,8 @@ export async function checkLicenseStatus() {
             payload
           };
         }
-        // Save any custom message returned from the server to local settings to display to the user
+        
+        // Save database updates from server
         if (data.customMessage) {
           await SystemSetting.upsert({ key: 'license_custom_message', value: data.customMessage });
         } else {
@@ -253,10 +395,13 @@ export async function checkLicenseStatus() {
         if (data.schoolId) {
           await SystemSetting.upsert({ key: 'school_id', value: data.schoolId });
         }
+        
         // Mark last successful online check
         await SystemSetting.upsert({ key: 'license_last_online_check', value: nowStr });
+        await SystemSetting.upsert({ key: 'license_last_run_date', value: nowStr });
+        writeSecureLastRunDate(nowStr);
+        onlineCheckSuccessful = true;
       } else if (response.status === 404 || response.status === 400 || response.status === 403 || response.status === 401) {
-        // If the server explicitly returns a Client Error, the key is invalid/revoked/deleted!
         let errorMsg = 'This license key is invalid or has been revoked by the administrator.';
         try {
           const data = await response.json();
@@ -270,36 +415,44 @@ export async function checkLicenseStatus() {
           payload
         };
       } else {
-        // For server errors (5xx), throw to go to offline check
         throw new Error(`Server returned status code ${response.status}`);
       }
     } catch (e) {
-      console.log("Online license key check failed (offline or server error). Proceeding with strict offline verification.", e.message);
-      // Strict Offline Hardware ID Binding Check
-      if (!payload.machineId) {
+      console.log("Online check failed (offline or server error). Proceeding offline.", e.message);
+    }
+
+    if (!onlineCheckSuccessful) {
+      // Hardware Lock Check (If license is specifically locked to hardware)
+      if (payload.machineId) {
+        const localMachineId = getMachineHardwareId();
+        if (payload.machineId !== localMachineId) {
+          return {
+            valid: false,
+            reason: 'INVALID',
+            error: 'This offline license key is registered to a different computer (Hardware ID mismatch).',
+            payload
+          };
+        }
+      }
+
+      // Check if they exceeded the offline grace period limit
+      if (daysOffline > hardLimit) {
         return {
-          valid: false,
-          reason: 'OFFLINE',
-          error: 'Internet connection is required to verify standard license keys. For offline usage, you must use a hardware-locked license key.',
+          valid: true,
+          warning: 'OFFLINE_EXPIRED',
+          error: `You have been offline for ${daysOffline} days (Limit: ${hardLimit} days). Please connect to the internet to verify your license.`,
           payload
         };
       }
-      const localMachineId = getMachineHardwareId();
-      if (payload.machineId !== localMachineId) {
-        return {
-          valid: false,
-          reason: 'INVALID',
-          error: 'This offline license key is registered to a different computer (Hardware ID mismatch).',
-          payload
-        };
-      }
-      // If we reach here, the offline check is successful and mathematically secure.
-      console.log("Strict offline hardware-locked license verified successfully.");
     }
 
     // Update last run date (only forward)
     if (!lastRunSetting || nowStr > lastRunSetting.value) {
       await SystemSetting.upsert({ key: 'license_last_run_date', value: nowStr });
+    }
+    const currentSecureLastRun = readSecureLastRunDate();
+    if (!currentSecureLastRun || nowStr > currentSecureLastRun) {
+      writeSecureLastRunDate(nowStr);
     }
 
     const schoolIdSetting = await SystemSetting.findOne({ where: { key: 'school_id' } });
@@ -410,6 +563,8 @@ export async function activateLicense(keyStr) {
     // Store key
     await SystemSetting.upsert({ key: 'license_key', value: keyStr.trim() });
     await SystemSetting.upsert({ key: 'license_last_run_date', value: nowStr });
+    await SystemSetting.upsert({ key: 'license_last_online_check', value: nowStr });
+    writeSecureLastRunDate(nowStr);
 
     const schoolId = payload.schoolId || '';
     if (schoolId) {
@@ -433,12 +588,6 @@ export async function confirmActivationAndWipe(keyStr, wipeData) {
     const nowStr = new Date().toISOString().split('T')[0];
 
     if (wipeData) {
-      // Import models dynamically to avoid circular references
-      const { 
-        sequelize, Payment, TeacherPayment, Expense, Absence, AuditLog, 
-        Schedule, ScheduleRequest, StudentCourses, Course, Student, Teacher, User 
-      } = await import('./database/models.js');
-
       await sequelize.query('PRAGMA foreign_keys = OFF;');
       try {
         await Payment.destroy({ where: {}, force: true });
@@ -482,6 +631,8 @@ export async function confirmActivationAndWipe(keyStr, wipeData) {
     // Save key
     await SystemSetting.upsert({ key: 'license_key', value: keyStr.trim() });
     await SystemSetting.upsert({ key: 'license_last_run_date', value: nowStr });
+    await SystemSetting.upsert({ key: 'license_last_online_check', value: nowStr });
+    writeSecureLastRunDate(nowStr);
 
     const schoolId = payload.schoolId || '';
     if (schoolId) {

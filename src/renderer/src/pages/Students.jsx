@@ -484,26 +484,26 @@ export default function Students() {
     const textAlignRight = isAr ? 'left' : 'right';
     const rowsHtml = studentGrades.map(g => `
       <tr>
-        <td style="text-align: ${textAlignLeft}; font-weight: bold; border: 1px solid #aaa; padding: 6px;">\${g.Course?.title || 'Course'}</td>
-        <td style="text-align: ${textAlignLeft}; border: 1px solid #aaa; padding: 6px;">\${g.exam_name}</td>
-        <td style="text-align: center; font-family: monospace; border: 1px solid #aaa; padding: 6px;">\${g.score} / \${g.max_score}</td>
-        <td style="text-align: center; font-family: monospace; border: 1px solid #aaa; padding: 6px;">\${g.coefficient}</td>
-        <td style="text-align: ${textAlignLeft}; border: 1px solid #aaa; padding: 6px;">\${g.remarks || ''}</td>
+        <td style="text-align: ${textAlignLeft}; font-weight: bold; border: 1px solid #aaa; padding: 6px;">${g.Course?.title || 'Course'}</td>
+        <td style="text-align: ${textAlignLeft}; border: 1px solid #aaa; padding: 6px;">${g.exam_name}</td>
+        <td style="text-align: center; font-family: monospace; border: 1px solid #aaa; padding: 6px;">${g.score} / ${g.max_score}</td>
+        <td style="text-align: center; font-family: monospace; border: 1px solid #aaa; padding: 6px;">${g.coefficient}</td>
+        <td style="text-align: ${textAlignLeft}; border: 1px solid #aaa; padding: 6px;">${g.remarks || ''}</td>
       </tr>
     `).join('');
     const html = `
 <!DOCTYPE html>
-<html dir="\${isAr ? 'rtl' : 'ltr'}">
+<html dir="${isAr ? 'rtl' : 'ltr'}">
 <head>
   <meta charset="utf-8">
-  <title>Report Card - \${student.full_name}</title>
+  <title>Report Card - ${student.full_name}</title>
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       margin: 20px;
       font-size: 11px;
       color: #333;
-      direction: \${isAr ? 'rtl' : 'ltr'};
+      direction: ${isAr ? 'rtl' : 'ltr'};
     }
     .header { width: 100%; margin-bottom: 20px; }
     .title { text-align: center; font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 5px; }
@@ -512,66 +512,66 @@ export default function Students() {
     .main-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
     .main-table th, .main-table td { border: 1px solid #aaa; padding: 6px; }
     .main-table th { background-color: #f2f2f2; }
-    .summary { float: \${textAlignRight}; width: 200px; border: 2px solid #000; padding: 8px; text-align: center; margin-bottom: 20px; }
+    .summary { float: ${textAlignRight}; width: 200px; border: 2px solid #000; padding: 8px; text-align: center; margin-bottom: 20px; }
     .footer { clear: both; margin-top: 50px; width: 100%; }
-    .signature { width: 48%; float: \${textAlignLeft}; text-align: center; }
-    .stamp { width: 48%; float: \${textAlignRight}; text-align: center; }
+    .signature { width: 48%; float: ${textAlignLeft}; text-align: center; }
+    .stamp { width: 48%; float: ${textAlignRight}; text-align: center; }
   </style>
 </head>
 <body>
   <table class="header">
     <tr>
-      <td style="text-align: \${textAlignLeft}; width: 50%;">
-        <strong>\${schoolName}</strong><br/>
-        \${schoolPhone ? \`Phone: \${schoolPhone}<br/>\` : ''}
-        \${schoolEmail ? \`Email: \${schoolEmail}\` : ''}
+      <td style="text-align: ${textAlignLeft}; width: 50%;">
+        <strong>${schoolName}</strong><br/>
+        ${schoolPhone ? `Phone: ${schoolPhone}<br/>` : ''}
+        ${schoolEmail ? `Email: ${schoolEmail}` : ''}
       </td>
-      <td style="text-align: \${textAlignRight}; width: 50%;">
-        <strong>\${t('students.billingYearLabel')}:</strong> \${academicYear}<br/>
-        <strong>Date:</strong> \${new Date().toLocaleDateString()}
+      <td style="text-align: ${textAlignRight}; width: 50%;">
+        <strong>${t('students.billingYearLabel')}:</strong> ${academicYear}<br/>
+        <strong>Date:</strong> ${new Date().toLocaleDateString()}
       </td>
     </tr>
   </table>
-  <div class="title">\${isAr ? 'كشف النقاط المدرسي' : 'Student Report Card'}</div>
+  <div class="title">${isAr ? 'كشف النقاط المدرسي' : 'Student Report Card'}</div>
   <table class="details-table">
     <tr>
       <td style="width: 50%;">
-        <strong>\${isAr ? 'اسم الطالب: ' : 'Student Name: '}</strong> \${student.full_name}<br/>
-        <strong>\${isAr ? 'رقم المعرف: ' : 'Student ID: '}</strong> ST-\${student.id}
+        <strong>${isAr ? 'اسم الطالب: ' : 'Student Name: '}</strong> ${student.full_name}<br/>
+        <strong>${isAr ? 'رقم المعرف: ' : 'Student ID: '}</strong> ST-${student.id}
       </td>
-      <td style="width: 50%; text-align: \${textAlignRight};">
-        <strong>\${isAr ? 'الطور / المستوى الدراسي: ' : 'Grade Level: '}</strong> \${student.grade_level || 'Primary'}<br/>
-        \${student.date_of_birth ? \`<strong>\${isAr ? 'تاريخ الميلاد: ' : 'Date of Birth: '}</strong> \${student.date_of_birth}\` : ''}
+      <td style="width: 50%; text-align: ${textAlignRight};">
+        <strong>${isAr ? 'الطور / المستوى الدراسي: ' : 'Grade Level: '}</strong> ${student.grade_level || 'Primary'}<br/>
+        ${student.date_of_birth ? `<strong>${isAr ? 'تاريخ الميلاد: ' : 'Date of Birth: '}</strong> ${student.date_of_birth}` : ''}
       </td>
     </tr>
   </table>
   <table class="main-table">
     <thead>
       <tr>
-        <th style="text-align: \${textAlignLeft};">\${t('students.courseCol')}</th>
-        <th style="text-align: \${textAlignLeft};">\${isAr ? 'الامتحان' : 'Examination'}</th>
-        <th style="text-align: center; width: 15%;">\${isAr ? 'العلامة /20' : 'Grade /20'}</th>
-        <th style="text-align: center; width: 10%;">\${t('customFeatures.coefficient')}</th>
-        <th style="text-align: \${textAlignLeft}; width: 25%;">\${isAr ? 'ملاحظات' : 'Remarks'}</th>
+        <th style="text-align: ${textAlignLeft};">${t('students.courseCol')}</th>
+        <th style="text-align: ${textAlignLeft};">${isAr ? 'الامتحان' : 'Examination'}</th>
+        <th style="text-align: center; width: 15%;">${isAr ? 'العلامة /20' : 'Grade /20'}</th>
+        <th style="text-align: center; width: 10%;">${t('customFeatures.coefficient')}</th>
+        <th style="text-align: ${textAlignLeft}; width: 25%;">${isAr ? 'ملاحظات' : 'Remarks'}</th>
       </tr>
     </thead>
     <tbody>
-      \${rowsHtml || \`<tr><td colspan="5" style="text-align: center; font-style: italic;">\${t('customFeatures.noGrades')}</td></tr>\`}
+      ${rowsHtml || `<tr><td colspan="5" style="text-align: center; font-style: italic;">${t('customFeatures.noGrades')}</td></tr>`}
     </tbody>
   </table>
-  \${totalCoeffs > 0 ? \`
+  ${totalCoeffs > 0 ? `
   <div class="summary">
-    <strong>\${isAr ? 'المعدل العام (على 20):' : 'General Average (/20):'}</strong><br/>
-    <span style="font-size: 16px; font-weight: bold;">\${average} / 20.00</span>
+    <strong>${isAr ? 'المعدل العام (على 20):' : 'General Average (/20):'}</strong><br/>
+    <span style="font-size: 16px; font-weight: bold;">${average} / 20.00</span>
   </div>
-  \` : ''}
+  ` : ''}
   <div class="footer">
     <div class="stamp">
-      <p>\${t('students.authorizedSignature')}</p>
+      <p>${t('students.authorizedSignature')}</p>
       <div style="height: 60px;"></div>
     </div>
     <div class="signature">
-      <p>\${isAr ? 'توقيع الأستاذ / الإدارة' : 'Instructor / Principal Signature'}</p>
+      <p>${isAr ? 'توقيع الأستاذ / الإدارة' : 'Instructor / Principal Signature'}</p>
       <div style="height: 60px;"></div>
     </div>
   </div>
@@ -589,10 +589,10 @@ export default function Students() {
     const isAr = language === 'ar';
     const html = `
 <!DOCTYPE html>
-<html dir="\${isAr ? 'rtl' : 'ltr'}">
+<html dir="${isAr ? 'rtl' : 'ltr'}">
 <head>
   <meta charset="utf-8">
-  <title>Student ID Card - \${student.full_name}</title>
+  <title>Student ID Card - ${student.full_name}</title>
   <style>
     body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     .card { width: 325px; height: 204px; border: 1px solid #cbd5e1; border-radius: 12px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #fff; padding: 12px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; position: relative; }
@@ -611,25 +611,25 @@ export default function Students() {
 <body>
   <div class="card">
     <div class="card-header">
-      <div class="school-name">\${schoolName}</div>
-      <div class="card-title">\${isAr ? 'بطاقة مدرسية' : 'STUDENT CARD'}</div>
+      <div class="school-name">${schoolName}</div>
+      <div class="card-title">${isAr ? 'بطاقة مدرسية' : 'STUDENT CARD'}</div>
     </div>
     <div class="card-body">
       <div class="avatar-placeholder">
         <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       </div>
       <div class="student-info">
-        <div class="student-name">\${student.full_name}</div>
-        <div><strong>ID:</strong> ST-\${student.id}</div>
-        <div style="margin-top: 2px;"><strong>Level:</strong> \${student.grade_level || 'Primary'}</div>
-        \${student.phone ? \`<div style="margin-top: 2px;"><strong>Phone:</strong> \${student.phone}</div>\` : ''}
+        <div class="student-name">${student.full_name}</div>
+        <div><strong>ID:</strong> ST-${student.id}</div>
+        <div style="margin-top: 2px;"><strong>Level:</strong> ${student.grade_level || 'Primary'}</div>
+        ${student.phone ? `<div style="margin-top: 2px;"><strong>Phone:</strong> ${student.phone}</div>` : ''}
       </div>
       <div class="qr-container">
-        <img class="qr-image" src="\${qrCodeDataUrl}" />
+        <img class="qr-image" src="${qrCodeDataUrl}" />
       </div>
     </div>
     <div class="card-footer">
-      <div>ACADEMIC YEAR: \${academicYear}</div>
+      <div>ACADEMIC YEAR: ${academicYear}</div>
       <div>VALID ID CARD</div>
     </div>
   </div>
@@ -1551,7 +1551,7 @@ export default function Students() {
 
   // Unenroll student from course
   const handleUnenrollStudent = async (courseId, courseTitle) => {
-    if (!(await window.confirm(`Are you sure you want to unenroll ${selectedStudent.full_name} from "${courseTitle}"?`))) return;
+    if (!(await window.confirm(t('courses.unenrollConfirm', { name: selectedStudent.full_name, course: courseTitle })))) return;
     
     setEnrollActionLoading(true)
     try {

@@ -6,7 +6,7 @@ import { autoUpdater } from 'electron-updater'
 
 import icon from '../../resources/icon.png?asset'
 import { sequelize, User, Student, Payment, Expense, Course, Teacher, AuditLog, Schedule, ScheduleRequest, SystemSetting, TeacherPayment, StudentCourses, Absence, Grade, EmailTemplate } from './database/models.js'; // Good job adding this!
-import { checkLicenseStatus, activateLicense, confirmActivationAndWipe, initMachineId } from './license.js';
+import { checkLicenseStatus, activateLicense, confirmActivationAndWipe, initMachineId, getMachineHardwareId } from './license.js';
 import { testSMTPConnection, sendEmail, sendBulkEmails } from './emailService.js';
 import { Op } from 'sequelize';
 import crypto from 'crypto';
@@ -192,7 +192,23 @@ function createWindow() {
     }
   } catch(e) {}
 
-  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+  mainWindow.webContents.on('console-message', (event, ...args) => {
+    let level, message, line, sourceId;
+    if (args.length === 1 && typeof args[0] === 'object' && args[0] !== null) {
+      // Modern Electron (event, details)
+      const details = args[0];
+      level = details.level;
+      message = details.message;
+      line = details.line;
+      sourceId = details.sourceId;
+    } else {
+      // Legacy Electron (event, level, message, line, sourceId)
+      level = args[0];
+      message = args[1];
+      line = args[2];
+      sourceId = args[3];
+    }
+
     const logLine = `[RENDERER] [Level ${level}] ${message} (at ${sourceId}:${line})\n`;
     try {
       fs.appendFileSync(logFile, logLine, 'utf8');
@@ -1797,7 +1813,6 @@ app.whenReady().then(async () => {
       
       // 1. Get raw hardware machine ID
       try {
-        const { getMachineHardwareId } = await import('./license.js');
         if (typeof getMachineHardwareId === 'function') {
           machineId = getMachineHardwareId();
         }
@@ -1805,7 +1820,6 @@ app.whenReady().then(async () => {
 
       // 2. Query activated license to align systemId with registered website license lock (schoolId or machineId)
       try {
-        const { checkLicenseStatus } = await import('./license.js');
         const licenseRes = await checkLicenseStatus();
         if (licenseRes && licenseRes.valid && licenseRes.payload) {
           // Extract matched schoolId or machineId from verified license key

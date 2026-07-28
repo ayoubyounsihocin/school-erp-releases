@@ -364,7 +364,16 @@ const ar = {
     statusRejected: 'مرفوض',
     statusPending: 'معلق',
     successRequestApproved: 'تمت الموافقة على طلب الجدولة بنجاح!',
-    successRequestRejected: 'تم رفض طلب الجدولة بنجاح!'
+    successRequestRejected: 'تم رفض طلب الجدولة بنجاح!',
+    deleteConfirmSyllabus: 'هل أنت متأكد من رغبتك في حذف المادة الدراسية "{title}"؟ سيتم إلغاء تسجيل جميع الطلاب في هذه المادة.',
+    deleteConfirmSchedule: 'هل أنت متأكد من رغبتك في إزالة هذه الحصة من الجدول الدراسي؟',
+    enrollmentManagerTitle: 'إدارة التسجيل',
+    enrollmentManagerCourse: 'المادة: ',
+    enrollmentManagerEnrolled: 'الطلاب المسجلين ({count})',
+    enrollmentManagerNoStudents: 'لا يوجد طلاب مسجلين في هذه المادة بعد.',
+    enrollmentManagerStudentId: 'معرف الطالب: ',
+    enrollmentManagerClose: 'إغلاق النافذة',
+    unenrollConfirm: 'هل أنت متأكد أنك تريد إلغاء تسجيل الطالب {name} من المادة "{course}"؟'
   },
   finances: {
     title: 'السجل والعمليات المالية',
@@ -498,7 +507,9 @@ const ar = {
     outstandingDue: 'الرصيد المتبقي',
     noOutstandingBalances: 'لم يتم العثور على أي أرصدة غير مدفوعة. كل الحسابات مسواة!',
     pending: 'معلق',
-    action: 'الإجراء'
+    action: 'الإجراء',
+    deleteConfirmTuition: 'هل أنت متأكد من رغبتك في حذف دفعة الرسوم الدراسية هذه نهائياً؟ لا يمكن التراجع عن هذا الإجراء.',
+    deleteConfirmInstructor: 'هل أنت متأكد من رغبتك في حذف دفعة الأستاذ هذه نهائياً؟ لا يمكن التراجع عن هذا الإجراء.'
   },
   settings: {
     title: 'إعدادات النظام العامة',

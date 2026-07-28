@@ -21,6 +21,8 @@ export default function Layout({ user, onLogout, theme, toggleTheme }) {
   const [downloadProgress, setDownloadProgress] = useState(0)
   const [showUpdateModal, setShowUpdateModal] = useState(false)
   const [updateError, setUpdateError] = useState('')
+  const [licenseWarning, setLicenseWarning] = useState(null)
+  const [showLicenseWarning, setShowLicenseWarning] = useState(true)
 
   const isRTL = language === 'ar'
 
@@ -412,6 +414,29 @@ export default function Layout({ user, onLogout, theme, toggleTheme }) {
     fetchSettingsAndNotifications()
   }, [location.pathname])
 
+  // Fetch active license status and check for warnings
+  useEffect(() => {
+    const checkLicenseWarnings = async () => {
+      try {
+        if (window.api && ipcService.checkLicense) {
+          const res = await ipcService.checkLicense()
+          if (res && res.valid && res.warning) {
+            setLicenseWarning({
+              type: res.warning,
+              message: res.error || ''
+            })
+            setShowLicenseWarning(true)
+          } else {
+            setLicenseWarning(null)
+          }
+        }
+      } catch (err) {
+        console.error("Failed to check license warnings in Layout:", err)
+      }
+    }
+    checkLicenseWarnings()
+  }, [location.pathname])
+
   const handleDismissNotification = () => {
     const activeMsg = systemNotification.customMessage || systemNotification.globalMessage
     if (activeMsg) {
@@ -761,6 +786,45 @@ export default function Layout({ user, onLogout, theme, toggleTheme }) {
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-slate-955 text-slate-100 select-none">
+      {/* Floating License Warning Container */}
+      {licenseWarning && showLicenseWarning && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] w-full max-w-xl px-4 animate-fade-in font-sans">
+          <div className="relative overflow-hidden bg-rose-500/10 border border-rose-500/25 backdrop-blur-md rounded-2xl shadow-2xl p-4 flex items-start gap-3.5 select-text text-left rtl:text-right" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+            {/* Glow Effect */}
+            <div className="absolute inset-0 bg-rose-500/2 opacity-[0.02] pointer-events-none" />
+            
+            {/* Icon */}
+            <div className="p-2 rounded-xl bg-rose-500/15 border border-rose-500/20 text-rose-400 shrink-0">
+              <AlertTriangle className="h-4 w-4 animate-pulse" />
+            </div>
+            
+            {/* Content */}
+            <div className="min-w-0 flex-1 space-y-1.5 pr-6 rtl:pr-0 rtl:pl-6">
+              <h4 className="text-xs font-bold text-rose-400 uppercase tracking-wider">
+                {language === 'ar' ? 'تحذير الترخيص' : 'License Alert'}
+              </h4>
+              <p className="text-[11px] text-slate-205 leading-relaxed font-semibold">
+                {language === 'ar' ? (
+                  licenseWarning.type === 'CLOCK_TAMPERED' 
+                    ? 'تنبيه: تم الكشف عن تلاعب بساعة النظام! يرجى تصحيح التاريخ والوقت لتجنب إيقاف الخدمة.'
+                    : 'تنبيه: لقد تجاوزت الحد المسموح به للعمل دون اتصال بالإنترنت. يرجى الاتصال بالإنترنت فوراً للمزامنة والتحقق من الترخيص.'
+                ) : (
+                  licenseWarning.message
+                )}
+              </p>
+            </div>
+
+            {/* Close Button */}
+            <button
+              onClick={() => setShowLicenseWarning(false)}
+              className="absolute top-3 right-3 rtl:right-auto rtl:left-3 p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 rounded-xl transition-all cursor-pointer"
+              title={language === 'ar' ? 'إغلاق' : 'Close'}
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
       {/* Sidebar Navigation */}
       <Sidebar 
         user={user} 

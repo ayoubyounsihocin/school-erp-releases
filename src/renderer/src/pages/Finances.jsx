@@ -1053,7 +1053,7 @@ export default function Finances() {
   }
 
   const handleDeletePayment = async (id) => {
-    if (!(await window.confirm("Are you sure you want to permanently delete this tuition payment? This action cannot be undone."))) return;
+    if (!(await window.confirm(t('finances.deleteConfirmTuition')))) return;
     setActionLoading(true)
     try {
       const res = await ipcService.deletePayment(id)
@@ -1200,7 +1200,7 @@ export default function Finances() {
 
   // Teacher Payout Delete Handler
   const handleDeleteTeacherPayment = async (id) => {
-    if (!(await window.confirm("Are you sure you want to permanently delete this instructor payment? This action cannot be undone."))) return;
+    if (!(await window.confirm(t('finances.deleteConfirmInstructor')))) return;
     setActionLoading(true);
     try {
       const res = await ipcService.deleteTeacherPayment(id);
